@@ -5,6 +5,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Callable
 
 import i18n
 import requests
@@ -79,16 +80,14 @@ class Config:
 
 
 class Posts:
-
     def __init__(self, config: Config):
         self.config: Config = config
 
     @staticmethod
-    def get_base_config(profile_url):
+    def get_base_config(profile_url: str):
         """
-        Dynamically configure base URLs and directories based on the profile URL domain
+        Dynamically configure base URLs and directories based on the profile URL domain.
         """
-        # Extract domain from the profile URL
         domain = profile_url.split('/')[2]
 
         if domain not in ['kemono.su', 'coomer.su']:
@@ -96,124 +95,94 @@ class Posts:
 
         base_api_url = f"https://{domain}/api/v1"
         base_server = f"https://{domain}"
-        base_dir = domain.split('.')[0]  # 'kemono' or 'coomer'
+        base_dir = domain.split('.')[0]  # Extract 'kemono' or 'coomer'
 
         return base_api_url, base_server, base_dir
 
     @staticmethod
-    def is_offset(value):
-        """Determina se o valor é um offset (até 5 dígitos) ou um ID."""
+    def is_offset(value: str) -> bool:
+        """
+        Determine if the value is an offset (up to 5 digits) or an ID.
+        """
         try:
-            # Tenta converter para inteiro e verifica o comprimento
-            return isinstance(int(value), int) and len(value) <= 5
+            return len(value) <= 5 and value.isdigit()
         except ValueError:
-            # Se não for um número, não é offset
             return False
 
-    def parse_fetch_mode(self, fetch_mode, total_count):
+    def parse_fetch_mode(self, fetch_mode: str, total_count: int) -> List:
         """
-        Analisa o modo de busca e retorna os offsets correspondentes
+        Parse the fetch mode and return corresponding offsets.
         """
-        # Caso especial: buscar todos os posts
         if fetch_mode == "all":
             return list(range(0, total_count, 50))
 
-        # Se for um número único (página específica)
         if fetch_mode.isdigit():
-            if self.is_offset(fetch_mode):
-                return [int(fetch_mode)]
-            else:
-                # Se for um ID específico, retorna como tal
-                return ["id:" + fetch_mode]
+            return [int(fetch_mode)] if self.is_offset(fetch_mode) else ["id:" + fetch_mode]
 
-        # Caso seja um intervalo
         if "-" in fetch_mode:
             start, end = fetch_mode.split("-")
+            start = 0 if start == "start" else int(start)
+            end = total_count if end == "end" else int(end)
 
-            # Tratar "start" e "end" especificamente
-            if start == "start":
-                start = 0
-            else:
-                start = int(start)
-
-            if end == "end":
-                end = total_count
-            else:
-                end = int(end)
-
-            # Se os valores são offsets
             if start <= total_count and end <= total_count:
-                # Calcular o número de páginas necessárias para cobrir o intervalo
-                # Usa ceil para garantir que inclua a página final
+                return [start + i * 50 for i in range(math.ceil((end - start) / 50))]
+            return [f"id:{start}-{end}"]
 
-                num_pages = math.ceil((end - start) / 50)
-
-                # Gerar lista de offsets
-                return [start + i * 50 for i in range(num_pages)]
-
-            # Se parecem ser IDs, retorna o intervalo de IDs
-            return ["id:" + str(start) + "-" + str(end)]
-
-        raise ValueError(f"{i18n.t("invalid_search_mode")}: {fetch_mode}")
+        raise ValueError(f"{i18n.t('invalid_search_mode')}: {fetch_mode}")
 
     @staticmethod
-    def get_artist_info(profile_url):
-        # Extrair serviço e user_id do URL
-        parts = profile_url.split("/")
-        service = parts[-3]
-        user_id = parts[-1]
-        return service, user_id
+    def get_artist_info(profile_url: str):
+        """
+        Extract service and user ID from the profile URL.
+        """
+        parts = profile_url.strip('/').split("/")
+        return parts[-3], parts[-1]
 
-    def fetch_posts(self, base_api_url, service, user_id, offset=0):
-        # Buscar posts da API
+    def fetch_posts(self, base_api_url: str, service: str, user_id: str, offset: int = 0):
+        """
+        Fetch posts from the API.
+        """
         url = f"{base_api_url}/{service}/user/{user_id}/posts-legacy?o={offset}"
         response = requests.get(url, proxies=self.config.get_requests_proxy(), verify=self.config.debug_verify_ssl)
         response.raise_for_status()
         return response.json()
 
-    # @staticmethod
-    # def save_json_incrementally(file_path, new_posts, start_offset, end_offset):
-    #     # Criar um novo dicionário com os posts atuais
-    #     data = {
-    #         "total_posts": len(new_posts),
-    #         "posts": new_posts
-    #     }
-    #
-    #     # Salvar o novo arquivo, substituindo o existente
-    #     with open(file_path, "w", encoding="utf-8") as f:
-    #         json.dump(data, f, indent=4, ensure_ascii=False)
-
     @staticmethod
-    def process_posts(posts, previews, attachments_data, page_number, offset, base_server, save_empty_files=True, id_filter=None):
-        # Processar posts e organizar os links dos arquivos
+    def process_posts(posts: List[Dict], previews: List[Dict], attachments_data: List[Dict],
+                      page_number: int, offset: int, base_server: str,
+                      save_empty_files: bool = True, id_filter: Optional[Callable[[str], bool]] = None) -> List[Dict]:
+        """
+        Process posts and organize file links.
+        """
         processed = []
         for post in posts:
-            # Filtro de ID se especificado
             if id_filter and not id_filter(post['id']):
                 continue
 
-            result = {"id": post["id"], "user": post["user"], "service": post["service"], "title": post["title"], "link": f"{base_server}/{post['service']}/user/{post['user']}/post/{post['id']}", "page": page_number, "offset": offset, "files": []}
+            result = {
+                "id": post["id"],
+                "user": post["user"],
+                "service": post["service"],
+                "title": post["title"],
+                "link": f"{base_server}/{post['service']}/user/{post['user']}/post/{post['id']}",
+                "page": page_number,
+                "offset": offset,
+                "files": []
+            }
 
-            # Combina previews e attachments_data em uma única lista para busca
             all_data = previews + attachments_data
-
-            # Processar arquivos no campo file
             if "file" in post and post["file"]:
-                matching_data = next((item for item in all_data if item["path"] == post["file"]["path"]), None)
-                if matching_data:
-                    file_url = f"{matching_data['server']}/data{post['file']['path']}"
-                    if file_url not in [f["url"] for f in result["files"]]:
-                        result["files"].append({"name": post["file"]["name"], "url": file_url})
+                file_data = next((item for item in all_data if item["path"] == post["file"]["path"]), None)
+                if file_data:
+                    file_url = f"{file_data['server']}/data{post['file']['path']}"
+                    result["files"].append({"name": post["file"]["name"], "url": file_url})
 
-            # Processar arquivos no campo attachments
             for attachment in post.get("attachments", []):
-                matching_data = next((item for item in all_data if item["path"] == attachment["path"]), None)
-                if matching_data:
-                    file_url = f"{matching_data['server']}/data{attachment['path']}"
-                    if file_url not in [f["url"] for f in result["files"]]:
-                        result["files"].append({"name": attachment["name"], "url": file_url})
+                attachment_data = next((item for item in all_data if item["path"] == attachment["path"]), None)
+                if attachment_data:
+                    file_url = f"{attachment_data['server']}/data{attachment['path']}"
+                    result["files"].append({"name": attachment["name"], "url": file_url})
 
-            # Ignorar posts sem arquivos se save_empty_files for False
             if not save_empty_files and not result["files"]:
                 continue
 
@@ -222,22 +191,23 @@ class Posts:
         return processed
 
     @staticmethod
-    def sanitize_filename(value):
-        """Remove caracteres que podem quebrar a criação de pastas."""
+    def sanitize_filename(value: str) -> str:
+        """
+        Remove characters that could break directory or file creation.
+        """
         return value.replace("/", "_").replace("\\", "_")
 
     def run(self, profile_url: str, fetch_mode: str):
-
-        # Configure base URLs dynamically
+        """
+        Run the post extraction process based on the profile URL and fetch mode.
+        """
         base_api_url, base_server, base_dir = self.get_base_config(profile_url)
-
-        # Fetch the first set of posts for general information
         service, user_id = self.get_artist_info(profile_url)
-        initial_data = self.fetch_posts(base_api_url, service, user_id, offset=0)
+
+        initial_data = self.fetch_posts(base_api_url, service, user_id)
         name = initial_data["props"]["name"]
         count = initial_data["props"]["count"]
 
-        # Sanitizar os valores
         safe_name = self.sanitize_filename(name)
         safe_service = self.sanitize_filename(service)
         safe_user_id = self.sanitize_filename(user_id)
@@ -248,80 +218,90 @@ class Posts:
             print(e)
             return
 
-        # Verificar se é busca por ID específico
         id_filter = None
-        found_ids = set()
         if isinstance(offsets[0], str) and offsets[0].startswith("id:"):
-            # Extrair IDs para filtro
             id_range = offsets[0].split(":")[1]
-
             if "-" in id_range:
-                id1, id2 = map(str, sorted(map(int, id_range.split("-"))))
-                id_filter = lambda x: id1 <= str(x) <= id2
+                id1, id2 = map(int, id_range.split("-"))
+                id_filter = lambda x: id1 <= int(x) <= id2
             else:
-                id_filter = lambda x: x == id_range
-            # Redefinir offsets para varrer todas as páginas
+                id_filter = lambda x: x == int(id_range)
             offsets = list(range(0, count, 50))
 
         processed_posts = []
-
         for offset in offsets:
             page_number = (offset // 50) + 1
-            post_data = self.fetch_posts(base_api_url, service, user_id, offset=offset)
-            posts = post_data["results"]
-            previews = [item for sublist in post_data.get("result_previews", []) for item in sublist]
-            attachments = [item for sublist in post_data.get("result_attachments", []) for item in sublist]
-
-            processed_posts += self.process_posts(posts, previews, attachments, page_number, offset, base_server, save_empty_files=self.config.get_empty_posts, id_filter=id_filter)  # Save incremental posts to JSON
+            post_data = self.fetch_posts(base_api_url, service, user_id, offset)
+            processed_posts += self.process_posts(
+                posts=post_data["results"],
+                previews=[item for sublist in post_data.get("result_previews", []) for item in sublist],
+                attachments_data=[item for sublist in post_data.get("result_attachments", []) for item in sublist],
+                page_number=page_number,
+                offset=offset,
+                base_server=base_server,
+                save_empty_files=self.config.get_empty_posts,
+                id_filter=id_filter
+            )
 
         return base_dir, safe_service, safe_user_id, safe_name, processed_posts
 
 
 class Down:
     def __init__(self, config: Config):
-        # Create an SQLite database connection
+        """
+        Initialize the downloader with a SQLite database and configuration.
+        """
         self.db = SqliteDatabase('downloaded.db')
         self.model = self.create_model()
-        # Connect to the database
         self.db.connect()
-        # ensure table creation
-        self.db.create_tables([self.model])
+        self.db.create_tables([self.model])  # Ensure the table exists
         self.config: Config = config
 
     def create_model(self):
+        """
+        Define the SQLite model for tracking downloaded posts.
+        """
         class DownloadedPosts(Model):
-            value = CharField(unique=True)  # A unique string field
+            value = CharField(unique=True)  # Unique identifier for downloaded posts
 
             class Meta:
-                database = self.db  # Use the 'downloaded.db' SQLite database from the instance
+                database = self.db  # Link the model to the SQLite database
 
         return DownloadedPosts
 
     @staticmethod
-    def sanitize_filename(filename):
-        """Sanitize filename by removing invalid characters and replacing spaces with underscores."""
-        filename = re.sub(r'[\\/*?\"<>|]', '', filename)
+    def sanitize_filename(filename: str) -> str:
+        """
+        Sanitize a filename by removing invalid characters and replacing spaces with underscores.
+        """
+        filename = re.sub(r'[\\/*?\"<>|]', '', filename)  # Remove invalid characters
         return filename.replace(' ', '_')
 
-    def download_file(self, file_url, save_path):
-        """Download a file from a URL and save it to the specified path with a progress bar and retry logic."""
+    def download_file(self, file_url: str, save_path: str):
+        """
+        Download a file from a URL and save it to the specified path.
+        Includes retry logic and a progress bar.
+        """
         max_retries = 5
-        retry_delay = 5  # seconds
+        retry_delay = 5  # Delay in seconds between retries
         attempt = 0
 
         while attempt < max_retries:
             try:
-                print(i18n.t("download_attempt", test1=attempt + 1, text2=file_url), flush=True)
-                response = requests.get(file_url, stream=True, proxies=self.config.get_requests_proxy(), verify=self.config.debug_verify_ssl)
+                print(i18n.t("download_attempt", text1=attempt + 1, text2=file_url), flush=True)
+                response = requests.get(file_url, stream=True, proxies=self.config.get_requests_proxy(),
+                                        verify=self.config.debug_verify_ssl)
                 response.raise_for_status()
 
                 # Get the total file size from headers
                 total_size = int(response.headers.get('content-length', 0))
 
-                # Set up the tqdm progress bar
+                # Save the file with a progress bar
                 with open(save_path, 'wb') as f:
-                    with tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024, desc="Downloading", leave=False  # Keep the progress bar on the same line
-                              ) as pbar:
+                    with tqdm(
+                        total=total_size, unit='B', unit_scale=True, unit_divisor=1024,
+                        desc="Downloading", leave=False
+                    ) as pbar:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
@@ -334,34 +314,40 @@ class Down:
                     print(i18n.t("download_incomplete", file_url=file_url, total_size=total_size, downloaded_size=downloaded_size))
                     raise Exception(i18n.t("could_not_complete"))
 
-                print(i18n.t("download_success2", file_url=file_url), flush=True)
-                return  # Exit the function if download is successful
+                print(i18n.t("download_complete", file_url=file_url), flush=True)
+                return  # Exit if the download is successful
 
             except Exception as e:
                 attempt += 1
-                print(f"Warning: Attempt {attempt} failed to download {file_url}: {e}")
+                print(f"Warning: Attempt {attempt} failed for {file_url}: {e}")
                 if attempt < max_retries:
                     print(f"Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 else:
                     print(f"Download failed after {max_retries} attempts.")
+                    return
 
-    def process_post(self, post, base_folder):
-        """Process a single post, downloading its files."""
+    def process_post(self, post: dict, base_folder: str):
+        """
+        Process a single post by downloading all its associated files.
+        """
         post_id = post.get("id")
         post_folder = os.path.join(base_folder, post_id)
         os.makedirs(post_folder, exist_ok=True)
 
         print(f"Processing post ID {post_id}")
 
-        # Download files using ThreadPoolExecutor
+        # Download files in parallel
         with ThreadPoolExecutor(max_workers=3) as executor:
             for file_url, file_save_path in self.generate_downloads(post, post_folder):
                 executor.submit(self.download_file, file_url, file_save_path)
 
-        print(f"Post {post_id} downloaded")
+        print(f"Post {post_id} downloaded successfully.")
 
-    def generate_downloads(self, post, post_folder):
+    def generate_downloads(self, post: dict, post_folder: str):
+        """
+        Generate a list of files to download for a post.
+        """
         for file_index, file in enumerate(post.get("files", []), start=1):
             original_name = file.get("name")
             file_url = file.get("url")
@@ -370,23 +356,28 @@ class Down:
             file_save_path = os.path.join(post_folder, new_filename)
             yield file_url, file_save_path
 
-    def run(self, base_folder, post_json):
-
-        # Base folder for posts
+    def run(self, base_folder: str, post_json: dict):
+        """
+        Run the download process for a single post.
+        """
+        # Set up the base folder for saving posts
         base_folder = os.path.join(base_folder, "posts")
         os.makedirs(base_folder, exist_ok=True)
 
-        # Process each post sequentially
-
+        # Check if the post has already been downloaded
         try:
             self.model.get(self.model.value == post_json.get("id"))
             print(i18n.t("already_downloaded"))
+            return
+        except self.model.DoesNotExist:
+            print(i18n.t("starting_download"))
 
-        except Exception:
-            print(i18n.t("continue_download"))
+        # Process and download the post
         self.process_post(post_json, base_folder)
+
+        # Mark the post as downloaded
         self.model.create(value=post_json.get("id"))
-        time.sleep(2)  # Wait 2 seconds between posts
+        time.sleep(2)  # Pause between posts to avoid overloading the server
 
 
 class Downloader:
