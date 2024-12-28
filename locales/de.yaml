@@ -1,0 +1,73 @@
+logo: |
+    '
+     _  __                                                   
+    | |/ /___ _ __ ___   ___  _ __   ___                     
+    | ' // _ \ '_ ` _ \ / _ \| '_ \ / _ \                    
+    | . \  __/ | | | | | (_) | | | | (_) |                   
+    |_|\_\___|_| |_| |_|\___/|_| |_|\___/                    
+     / ___|___   ___  _ __ ___   ___ _ __                    
+    | |   / _ \ / _ \| '_ ` _ \ / _ \ '__|                   
+    | |__| (_) | (_) | | | | | |  __/ |                      
+     \____\___/ \___/|_| |_| |_|\___|_|          _           
+    |  _ \  _____      ___ __ | | ___   __ _  __| | ___ _ __ 
+    | | | |/ _ \ \ /\ / / '_ \| |/ _ \ / _` |/ _` |/ _ \ '__|
+    | |_| | (_) \ V  V /| | | | | (_) | (_| | (_| |  __/ |   
+    |____/ \___/ \_/\_/ |_| |_|_|\___/ \__,_|\__,_|\___|_|   
+    
+    Created by E43b and forked by utidevel
+    GitHub: https://github.com/utidevel
+    Original GitHub: https://github.com/e43b
+    Discord: https://discord.gg/GNJbxzD8bK
+    Project Repository: https://github.com/utidevel/Kemono-and-Coomer-Downloader
+    Original Project Repository: https://github.com/e43b/Kemono-and-Coomer-Downloader
+    Donate: https://ko-fi.com/e43bs
+    '
+
+file_not_found: "Fehler: Die Datei '%{file_path}' wurde nicht gefunden."
+config_not_found: "Konfiguration nicht gefunden"
+config_errors: "Die Konfiguration enthält Fehler"
+config_saved: "Konfiguration erfolgreich in %{file_path} gespeichert"
+error_saving_config: "Fehler beim Speichern der Konfiguration in %{file_path}"
+invalid_search_mode: "Ungültiger Suchmodus"
+found_both_ids: "Beide IDs gefunden: %{id1} und %{id2}"
+download_attempt: "Versuch %{text1} zum Herunterladen von %{text2}"
+download_success: "\nDownload von %{file_url} erfolgreich. Die Dateigröße ist korrekt: %{downloaded_size} Bytes."
+download_incomplete: "\nDownload von %{file_url} unvollständig. Erwartet %{total_size} Bytes, aber es wurden %{downloaded_size} Bytes heruntergeladen."
+could_not_complete: "Nicht abgeschlossen, bitte versuche es erneut"
+download_success2: "\nDownload von %{file_url} erfolgreich"
+already_downloaded: "Bereits heruntergeladen, wird übersprungen"
+continue_download: "Der Link wurde nicht in der Datenbank gefunden. Fortsetzung des Downloads"
+post_extract_complete: "Beitrags-Extraktion abgeschlossen: %{total_posts} Beiträge gefunden"
+number_of_files: "Gesamtzahl der herunterzuladenden Dateien: %{total_files}"
+starting_downloads: "Starte Downloads von Beiträgen"
+post_downloaded: "Beitrag %{post_id} vollständig heruntergeladen (%{current_files_count}/%{expected_files_count} Dateien)"
+post_partially_downloaded: "Beitrag %{post_id} teilweise heruntergeladen: %{current_files_count}/{expected_files_count} Dateien"
+post_download_error: "Fehler beim Herunterladen des Beitrags %{post_id}"
+post_all_complete: "\nAlle Beiträge wurden verarbeitet!"
+download_profile_posts: |
+        Profilbeiträge herunterladen
+        -----------------------
+        1 - Alle Beiträge eines Profils herunterladen
+        2 - Beiträge von einer bestimmten Seite herunterladen
+        3 - Beiträge von einem Bereich von Seiten herunterladen
+        4 - Beiträge zwischen zwei bestimmten Beiträgen herunterladen
+        5 - Zurück zum Hauptmenü
+download_profile_posts_choice: "\nGib deine Wahl ein (1/2/3/4/5): "
+choose_an_option: |
+        Wähle eine Option:
+        1 - Alle Beiträge eines Profils herunterladen
+        2 - Die Programmeinstellungen anpassen
+        3 - Datenbank entfernen
+        4 - Das Programm beenden
+choose_an_option_choice: "\nGib deine Wahl ein (1/2/3/4): "
+leave_program: "Das Programm wird verlassen. Bis bald!"
+invalid_option: "Ungültige Option. Drücke Enter, um fortzufahren..."
+invalid_option_try_again: "Ungültige Option. Bitte versuche es erneut."
+customize_settings: |
+        Einstellungen anpassen
+        ---------------------------
+        1 - Leere Beiträge herunterladen: %{get_empty_posts}
+        2 - Ältere Beiträge zuerst herunterladen: %{process_from_oldest}
+        3 - Für einzelne Beiträge eine Datei mit Informationen (Titel, Beschreibung, etc.) erstellen: %{save_info}
+        4 - Den Dateityp wählen, um die Informationen zu speichern (Markdown oder TXT): %{post_info}
+        5 - Zurück zum Hauptmenü

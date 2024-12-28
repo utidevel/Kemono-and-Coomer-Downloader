@@ -1,5 +1,7 @@
+import gettext
 import importlib
 import json
+import locale
 import os
 import re
 import subprocess
@@ -12,6 +14,7 @@ import requests
 import yaml
 from peewee import SqliteDatabase, Model, CharField
 from tqdm import tqdm
+import i18n
 
 
 class Config:
@@ -48,10 +51,10 @@ class Config:
                 debug_verify_ssl=data.get('debug_verify_ssl', True)
             )
         except FileNotFoundError:
-            print(f"Error: The file '{file_path}' was not found.")
-            raise Exception("Configuration not found")
+            print(i18n.t("file_not_found", file_path=file_path))
+            raise Exception(i18n.t("config_not_found"))
         except yaml.YAMLError as e:
-            raise Exception("Configuration has errors")
+            raise Exception(i18n.t("config_errors"))
 
     def save_to_yaml(self, file_path):
         """
@@ -71,9 +74,9 @@ class Config:
         try:
             with open(file_path, 'w') as file:
                 yaml.dump(data, file, default_flow_style=False)
-            print(f"Configuration successfully saved to {file_path}")
+            print(i18n.t("config_saved",file_path=file_path))
         except Exception as e:
-            print(f"Error saving configuration to {file_path}: {e}")
+            print(f"{i18n.t("error_saving_config",file_path=file_path)}:{e}")
 
     def __str__(self):
         return (f"ProxyConfig("
@@ -167,7 +170,7 @@ class Posts:
             # Se parecem ser IDs, retorna o intervalo de IDs
             return ["id:" + str(start) + "-" + str(end)]
 
-        raise ValueError(f"Modo de busca inválido: {fetch_mode}")
+        raise ValueError(f"{i18n.t("invalid_search_mode")}: {fetch_mode}")
 
     @staticmethod
     def get_artist_info(profile_url):
@@ -363,7 +366,7 @@ class Posts:
 
                     # Check if both IDs were found
                     if (id1 in found_ids) and (id2 in found_ids):
-                        print(f"Found both IDs: {id1} e {id2}")
+                        print(i18n.t("found_both_ids",id1=id1, id2=id2))
                         break
 
         # Print the full path of the generated JSON file
@@ -404,7 +407,7 @@ class Down:
 
         while attempt < max_retries:
             try:
-                print(f"Attempt {attempt + 1} to download {file_url}", flush=True)
+                print(i18n.t("download_attempt", test1=attempt + 1, text2=file_url), flush=True)
                 response = requests.get(file_url, stream=True, proxies=self.config.get_requests_proxy(), verify=self.config.debug_verify_ssl)
                 response.raise_for_status()
 
@@ -422,12 +425,12 @@ class Down:
 
                 downloaded_size = os.path.getsize(save_path)
                 if downloaded_size == total_size:
-                    print(f"\nDownload {file_url} success. File size is correct: {downloaded_size} bytes.")
+                    print(i18n.t("download_success", file_url=file_url, downloaded_size=downloaded_size))
                 else:
-                    print(f"\nDownload {file_url} incomplete. Expected {total_size} bytes but got {downloaded_size} bytes.")
-                    raise Exception("not complete try again")
+                    print(i18n.t("download_incomplete",file_url=file_url,total_size=total_size,downloaded_size=downloaded_size))
+                    raise Exception(i18n.t("could_not_complete"))
 
-                print(f"\nDownload {file_url} success", flush=True)
+                print(i18n.t("download_success2",file_url=file_url), flush=True)
                 return  # Exit the function if download is successful
 
             except Exception as e:
@@ -488,10 +491,10 @@ class Down:
         for post_index, post in enumerate(posts, start=1):
             try:
                 self.model.get(self.model.value == post.get("id"))
-                print("Already Downloaded Skipping")
+                print(i18n.t("already_downloaded"))
                 continue
             except Exception:
-                print("The link was not found in the database. Contime download")
+                print(i18n.t("continue_download"))
             self.process_post(post, base_folder)
             self.model.create(value=post.get("id"))
             time.sleep(2)  # Wait 2 seconds between posts
@@ -501,6 +504,18 @@ class Codeen:
     down = None
 
     def __init__(self):
+        system_locale, _ = locale.getdefaultlocale()
+        language_code = system_locale.split("_")[0]
+        i18n.set("locale", language_code)
+
+        i18n.set('filename_format', '{locale}.{format}')
+        i18n.set('file_format', 'yaml')
+        i18n.set('skip_locale_root_data', True)
+        i18n.load_path.append("locales")
+        i18n.set("locale", "en")
+
+        # print(i18n.t("bla"))
+
         self.config = Config.from_yaml("conf.yaml")
         self.down = Down(self.config)
         self.posts = Posts(self.config)
@@ -512,30 +527,7 @@ class Codeen:
 
     @staticmethod
     def display_logo():
-        """Exibe o logo do projeto"""
-        logo = """
-     _  __                                                   
-    | |/ /___ _ __ ___   ___  _ __   ___                     
-    | ' // _ \ '_ ` _ \ / _ \| '_ \ / _ \                    
-    | . \  __/ | | | | | (_) | | | | (_) |                   
-    |_|\_\___|_| |_| |_|\___/|_| |_|\___/                    
-     / ___|___   ___  _ __ ___   ___ _ __                    
-    | |   / _ \ / _ \| '_ ` _ \ / _ \ '__|                   
-    | |__| (_) | (_) | | | | | |  __/ |                      
-     \____\___/ \___/|_| |_| |_|\___|_|          _           
-    |  _ \  _____      ___ __ | | ___   __ _  __| | ___ _ __ 
-    | | | |/ _ \ \ /\ / / '_ \| |/ _ \ / _` |/ _` |/ _ \ '__|
-    | |_| | (_) \ V  V /| | | | | (_) | (_| | (_| |  __/ |   
-    |____/ \___/ \_/\_/ |_| |_|_|\___/ \__,_|\__,_|\___|_|   
-    
-    Created by E43b
-    GitHub: https://github.com/e43b
-    GitHub: https://github.com/e43b
-    Discord: https://discord.gg/GNJbxzD8bK
-    Project Repository: https://github.com/e43b/Kemono-and-Coomer-Downloader
-    Donate: https://ko-fi.com/e43bs
-    """
-        print(logo)
+        print(i18n.t("logo"))
 
     @staticmethod
     def normalize_path(path):
@@ -594,9 +586,9 @@ class Codeen:
             total_files = sum(len(post['files']) for post in posts_data['posts'])
 
             # Imprimir informações iniciais
-            print(f"Post extraction completed: {total_posts} posts found")
-            print(f"Total number of files to download: {total_files}")
-            print("Starting post downloads")
+            print(i18n.t("post_extract_complete",total_posts=total_posts))
+            print(i18n.t("number_of_files",total_files=total_files))
+            print(i18n.t("starting_downloads"))
 
             # Determinar ordem de processamento
             if self.config.process_from_oldest:
@@ -639,17 +631,17 @@ class Codeen:
 
                         # Verificar o resultado do download
                         if current_files_count == expected_files_count:
-                            print(f"Post {post_id} downloaded completely ({current_files_count}/{expected_files_count} files)")
+                            print(i18n.t("post_downloaded",post_id=post_id,current_files_count=current_files_count,expected_files_count=expected_files_count))
                         else:
-                            print(f"Post {post_id} partially downloaded: {current_files_count}/{expected_files_count} files")
+                            print(i18n.t("post_partially_downloaded",post_id=post_id,current_files_count=current_files_count,expected_files_count=expected_files_count))
 
                     except Exception as e:
-                        print(f"Error while downloading post {post_id}: {e}")
+                        print(f"{i18n.t("post_download_error",post_id=post_id)}: {e}")
 
                     # Pequeno delay para evitar sobrecarga
                     time.sleep(0.5)
 
-            print("\nAll posts have been processed!")
+            print(i18n.t("post_all_complete"))
 
         except Exception as e:
             print(f"Unexpected error: {e}")
@@ -659,15 +651,9 @@ class Codeen:
         """Opção para baixar posts de um perfil"""
         self.clear_screen()
         self.display_logo()
-        print("Download Profile Posts")
-        print("-----------------------")
-        print("1 - Download all posts from a profile")
-        print("2 - Download posts from a specific page")
-        print("3 - Downloading posts from a range of pages")
-        print("4 - Downloading posts between two specific posts")
-        print("5 - Back to the main menu")
+        print(i18n.t("download_profile_posts"))
 
-        choice = input("\nEnter your choice (1/2/3/4/5): ")
+        choice = input(i18n.t("download_profile_posts_choice"))
 
         if choice == '5':
             return
@@ -718,15 +704,9 @@ class Codeen:
         while True:
             self.clear_screen()
             self.display_logo()
-            print("Customize Settings")
-            print("------------------------")
-            print(f"1 - Take empty posts: {self.config.get_empty_posts}")
-            print(f"2 - Download older posts first: {self.config.process_from_oldest}")
-            print(f"3 - For individual posts, create a file with information (title, description, etc.): {self.config.save_info}")
-            print(f"4 - Choose the type of file to save the information (Markdown or TXT): {self.config.post_info}")
-            print("5 - Back to the main menu")
 
-            choice = input("\nChoose an option (1/2/3/4/5): ")
+            print(i18n.t("customize_settings",get_empty_posts=self.config.get_empty_posts, process_from_oldest=self.config.process_from_oldest,save_info=self.config.save_info, post_info=self.config.post_info))
+            choice = input(i18n.t("download_profile_posts_choice"))
 
             if choice == '1':
                 config.get_empty_posts = not config.get_empty_posts
@@ -741,7 +721,7 @@ class Codeen:
                 # Sair do menu de configurações
                 break
             else:
-                print("Invalid option. Please try again.")
+                print(i18n.t("invalid_option_try_again"))
 
             # Salvar as configurações no arquivo
             config.save_to_yaml("conf.yaml")
@@ -754,12 +734,9 @@ class Codeen:
         while True:
             self.clear_screen()
             self.display_logo()
-            print("Choose an option:")
-            print("1 - Download all posts from a profile")
-            print("2 - Customize the program settings")
-            print("3 - remove database")
-            print("4 - Exit the program")
-            choice = input("\nEnter your choice (1/2/3/4): ")
+            print(i18n.t("choose_an_option"))
+
+            choice = input(i18n.t("choose_an_option_choice"))
             if choice == '1':
                 self.download_profile_posts()
             elif choice == '2':
@@ -767,11 +744,12 @@ class Codeen:
             elif choice == '3':
                 os.remove("downloaded.db")
             elif choice == '4':
-                print("Leaving the program. See you later!")
+                print(i18n.t("leave_program"))
                 break
             else:
-                input("Invalid option. Press Enter to continue...")
+                input(i18n.t("invalid_option"))
 
 
 if __name__ == "__main__":
     Codeen().main_menu()
+

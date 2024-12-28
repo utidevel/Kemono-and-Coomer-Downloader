@@ -1,0 +1,73 @@
+logo: |
+    '
+     _  __                                                   
+    | |/ /___ _ __ ___   ___  _ __   ___                     
+    | ' // _ \ '_ ` _ \ / _ \| '_ \ / _ \                    
+    | . \  __/ | | | | | (_) | | | | (_) |                   
+    |_|\_\___|_| |_| |_|\___/|_| |_|\___/                    
+     / ___|___   ___  _ __ ___   ___ _ __                    
+    | |   / _ \ / _ \| '_ ` _ \ / _ \ '__|                   
+    | |__| (_) | (_) | | | | | |  __/ |                      
+     \____\___/ \___/|_| |_| |_|\___|_|          _           
+    |  _ \  _____      ___ __ | | ___   __ _  __| | ___ _ __ 
+    | | | |/ _ \ \ /\ / / '_ \| |/ _ \ / _` |/ _` |/ _ \ '__|
+    | |_| | (_) \ V  V /| | | | | (_) | (_| | (_| |  __/ |   
+    |____/ \___/ \_/\_/ |_| |_|_|\___/ \__,_|\__,_|\___|_|   
+    
+    Created by E43b and forked by utidevel
+    GitHub: https://github.com/utidevel
+    Original GitHub: https://github.com/e43b
+    Discord: https://discord.gg/GNJbxzD8bK
+    Project Repository: https://github.com/utidevel/Kemono-and-Coomer-Downloader
+    Original Project Repository: https://github.com/e43b/Kemono-and-Coomer-Downloader
+    Donate: https://ko-fi.com/e43bs
+    '
+
+file_not_found: "Error: El archivo '%{file_path}' no fue encontrado."
+config_not_found: "Configuración no encontrada"
+config_errors: "La configuración tiene errores"
+config_saved: "Configuración guardada con éxito en %{file_path}"
+error_saving_config: "Error al guardar la configuración en %{file_path}"
+invalid_search_mode: "Modo de búsqueda inválido"
+found_both_ids: "Se encontraron ambos ID: %{id1} y %{id2}"
+download_attempt: "Intento %{text1} de descargar %{text2}"
+download_success: "\nDescarga de %{file_url} exitosa. El tamaño del archivo es correcto: %{downloaded_size} bytes."
+download_incomplete: "\nDescarga de %{file_url} incompleta. Se esperaban %{total_size} bytes, pero se descargaron %{downloaded_size} bytes."
+could_not_complete: "No completado, intenta de nuevo"
+download_success2: "\nDescarga de %{file_url} exitosa"
+already_downloaded: "Ya descargado, omitiendo"
+continue_download: "El enlace no fue encontrado en la base de datos. Continuando la descarga"
+post_extract_complete: "Extracción de publicaciones completada: %{total_posts} publicaciones encontradas"
+number_of_files: "Número total de archivos para descargar: %{total_files}"
+starting_downloads: "Iniciando descargas de publicaciones"
+post_downloaded: "Publicación %{post_id} descargada completamente (%{current_files_count}/%{expected_files_count} archivos)"
+post_partially_downloaded: "Publicación %{post_id} descargada parcialmente: %{current_files_count}/{expected_files_count} archivos"
+post_download_error: "Error al descargar la publicación %{post_id}"
+post_all_complete: "\n¡Todas las publicaciones han sido procesadas!"
+download_profile_posts: |
+        Descargar publicaciones de perfil
+        -----------------------
+        1 - Descargar todas las publicaciones de un perfil
+        2 - Descargar publicaciones de una página específica
+        3 - Descargar publicaciones de un rango de páginas
+        4 - Descargar publicaciones entre dos publicaciones específicas
+        5 - Volver al menú principal
+download_profile_posts_choice: "\nIntroduce tu elección (1/2/3/4/5): "
+choose_an_option: |
+        Elige una opción:
+        1 - Descargar todas las publicaciones de un perfil
+        2 - Personalizar la configuración del programa
+        3 - Eliminar la base de datos
+        4 - Salir del programa
+choose_an_option_choice: "\nIntroduce tu elección (1/2/3/4): "
+leave_program: "Saliendo del programa. ¡Hasta luego!"
+invalid_option: "Opción inválida. Presiona Enter para continuar..."
+invalid_option_try_again: "Opción inválida. Por favor, intenta de nuevo."
+customize_settings: |
+        Personalizar configuraciones
+        ---------------------------
+        1 - Descargar publicaciones vacías: %{get_empty_posts}
+        2 - Descargar publicaciones más antiguas primero: %{process_from_oldest}
+        3 - Para publicaciones individuales, crear un archivo con información (título, descripción, etc.): %{save_info}
+        4 - Elegir el tipo de archivo para guardar la información (Markdown o TXT): %{post_info}
+        5 - Volver al menú principal

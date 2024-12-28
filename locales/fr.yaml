@@ -1,0 +1,73 @@
+logo: |
+    '
+     _  __                                                   
+    | |/ /___ _ __ ___   ___  _ __   ___                     
+    | ' // _ \ '_ ` _ \ / _ \| '_ \ / _ \                    
+    | . \  __/ | | | | | (_) | | | | (_) |                   
+    |_|\_\___|_| |_| |_|\___/|_| |_|\___/                    
+     / ___|___   ___  _ __ ___   ___ _ __                    
+    | |   / _ \ / _ \| '_ ` _ \ / _ \ '__|                   
+    | |__| (_) | (_) | | | | | |  __/ |                      
+     \____\___/ \___/|_| |_| |_|\___|_|          _           
+    |  _ \  _____      ___ __ | | ___   __ _  __| | ___ _ __ 
+    | | | |/ _ \ \ /\ / / '_ \| |/ _ \ / _` |/ _` |/ _ \ '__|
+    | |_| | (_) \ V  V /| | | | | (_) | (_| | (_| |  __/ |   
+    |____/ \___/ \_/\_/ |_| |_|_|\___/ \__,_|\__,_|\___|_|   
+    
+    Created by E43b and forked by utidevel
+    GitHub: https://github.com/utidevel
+    Original GitHub: https://github.com/e43b
+    Discord: https://discord.gg/GNJbxzD8bK
+    Project Repository: https://github.com/utidevel/Kemono-and-Coomer-Downloader
+    Original Project Repository: https://github.com/e43b/Kemono-and-Coomer-Downloader
+    Donate: https://ko-fi.com/e43bs
+    '
+
+file_not_found: "Erreur : Le fichier '%{file_path}' n'a pas été trouvé."
+config_not_found: "Configuration non trouvée"
+config_errors: "La configuration contient des erreurs"
+config_saved: "Configuration enregistrée avec succès dans %{file_path}"
+error_saving_config: "Erreur lors de l'enregistrement de la configuration dans %{file_path}"
+invalid_search_mode: "Mode de recherche invalide"
+found_both_ids: "Les deux ID ont été trouvés : %{id1} et %{id2}"
+download_attempt: "Tentative %{text1} de télécharger %{text2}"
+download_success: "\nTéléchargement de %{file_url} réussi. La taille du fichier est correcte : %{downloaded_size} octets."
+download_incomplete: "\nTéléchargement de %{file_url} incomplet. Attendu %{total_size} octets mais %{downloaded_size} octets ont été téléchargés."
+could_not_complete: "Non terminé, essayez encore"
+download_success2: "\nTéléchargement de %{file_url} réussi"
+already_downloaded: "Déjà téléchargé, en cours de saut"
+continue_download: "Le lien n'a pas été trouvé dans la base de données. Continuer le téléchargement"
+post_extract_complete: "Extraction des publications terminée : %{total_posts} publications trouvées"
+number_of_files: "Nombre total de fichiers à télécharger : %{total_files}"
+starting_downloads: "Démarrage des téléchargements des publications"
+post_downloaded: "Publication %{post_id} téléchargée entièrement (%{current_files_count}/%{expected_files_count} fichiers)"
+post_partially_downloaded: "Publication %{post_id} téléchargée partiellement : %{current_files_count}/{expected_files_count} fichiers"
+post_download_error: "Erreur lors du téléchargement de la publication %{post_id}"
+post_all_complete: "\nToutes les publications ont été traitées !"
+download_profile_posts: |
+        Télécharger les publications du profil
+        -----------------------
+        1 - Télécharger toutes les publications d'un profil
+        2 - Télécharger les publications d'une page spécifique
+        3 - Télécharger les publications d'une plage de pages
+        4 - Télécharger des publications entre deux publications spécifiques
+        5 - Retour au menu principal
+download_profile_posts_choice: "\nEntrez votre choix (1/2/3/4/5) : "
+choose_an_option: |
+        Choisissez une option :
+        1 - Télécharger toutes les publications d'un profil
+        2 - Personnaliser les paramètres du programme
+        3 - Supprimer la base de données
+        4 - Quitter le programme
+choose_an_option_choice: "\nEntrez votre choix (1/2/3/4) : "
+leave_program: "Quitter le programme. À bientôt !"
+invalid_option: "Option invalide. Appuyez sur Entrée pour continuer..."
+invalid_option_try_again: "Option invalide. Veuillez réessayer."
+customize_settings: |
+        Personnaliser les paramètres
+        ---------------------------
+        1 - Télécharger les publications vides : %{get_empty_posts}
+        2 - Télécharger les publications les plus anciennes d'abord : %{process_from_oldest}
+        3 - Pour les publications individuelles, créer un fichier avec des informations (titre, description, etc.) : %{save_info}
+        4 - Choisir le type de fichier pour enregistrer les informations (Markdown ou TXT) : %{post_info}
+        5 - Retour au menu principal

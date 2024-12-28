@@ -1,4 +1,5 @@
 requests
 tqdm
 peewee
-PyYAML
+pyyaml
+python-i18n

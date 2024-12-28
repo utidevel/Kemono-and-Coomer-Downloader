@@ -1,0 +1,73 @@
+logo: |
+    '
+     _  __                                                   
+    | |/ /___ _ __ ___   ___  _ __   ___                     
+    | ' // _ \ '_ ` _ \ / _ \| '_ \ / _ \                    
+    | . \  __/ | | | | | (_) | | | | (_) |                   
+    |_|\_\___|_| |_| |_|\___/|_| |_|\___/                    
+     / ___|___   ___  _ __ ___   ___ _ __                    
+    | |   / _ \ / _ \| '_ ` _ \ / _ \ '__|                   
+    | |__| (_) | (_) | | | | | |  __/ |                      
+     \____\___/ \___/|_| |_| |_|\___|_|          _           
+    |  _ \  _____      ___ __ | | ___   __ _  __| | ___ _ __ 
+    | | | |/ _ \ \ /\ / / '_ \| |/ _ \ / _` |/ _` |/ _ \ '__|
+    | |_| | (_) \ V  V /| | | | | (_) | (_| | (_| |  __/ |   
+    |____/ \___/ \_/\_/ |_| |_|_|\___/ \__,_|\__,_|\___|_|   
+    
+    Created by E43b and forked by utidevel
+    GitHub: https://github.com/utidevel
+    Original GitHub: https://github.com/e43b
+    Discord: https://discord.gg/GNJbxzD8bK
+    Project Repository: https://github.com/utidevel/Kemono-and-Coomer-Downloader
+    Original Project Repository: https://github.com/e43b/Kemono-and-Coomer-Downloader
+    Donate: https://ko-fi.com/e43bs
+    '
+
+file_not_found: "Erro: O arquivo '%{file_path}' não foi encontrado."
+config_not_found: "Configuração não encontrada"
+config_errors: "A configuração contém erros"
+config_saved: "Configuração salva com sucesso em %{file_path}"
+error_saving_config: "Erro ao salvar a configuração em %{file_path}"
+invalid_search_mode: "Modo de busca inválido"
+found_both_ids: "Ambos os IDs encontrados: %{id1} e %{id2}"
+download_attempt: "Tentativa %{text1} de baixar %{text2}"
+download_success: "\nDownload de %{file_url} bem-sucedido. O tamanho do arquivo está correto: %{downloaded_size} bytes."
+download_incomplete: "\nDownload de %{file_url} incompleto. Esperado %{total_size} bytes, mas foi baixado %{downloaded_size} bytes."
+could_not_complete: "Não concluído, tente novamente"
+download_success2: "\nDownload de %{file_url} bem-sucedido"
+already_downloaded: "Já baixado, ignorando"
+continue_download: "O link não foi encontrado no banco de dados. Continuando o download"
+post_extract_complete: "Extração de post concluída: %{total_posts} posts encontrados"
+number_of_files: "Número total de arquivos para baixar: %{total_files}"
+starting_downloads: "Iniciando downloads de posts"
+post_downloaded: "Post %{post_id} baixado completamente (%{current_files_count}/%{expected_files_count} arquivos)"
+post_partially_downloaded: "Post %{post_id} parcialmente baixado: %{current_files_count}/{expected_files_count} arquivos"
+post_download_error: "Erro ao baixar o post %{post_id}"
+post_all_complete: "\nTodos os posts foram processados!"
+download_profile_posts: |
+        Baixar Posts do Perfil
+        -----------------------
+        1 - Baixar todos os posts de um perfil
+        2 - Baixar posts de uma página específica
+        3 - Baixar posts de um intervalo de páginas
+        4 - Baixar posts entre dois posts específicos
+        5 - Voltar ao menu principal
+download_profile_posts_choice: "\nDigite sua escolha (1/2/3/4/5): "
+choose_an_option: |
+        Escolha uma opção:
+        1 - Baixar todos os posts de um perfil
+        2 - Personalizar as configurações do programa
+        3 - Remover banco de dados
+        4 - Sair do programa
+choose_an_option_choice: "\nDigite sua escolha (1/2/3/4): "
+leave_program: "Saindo do programa. Até logo!"
+invalid_option: "Opção inválida. Pressione Enter para continuar..."
+invalid_option_try_again: "Opção inválida. Por favor, tente novamente."
+customize_settings: |
+        Personalizar Configurações
+        ---------------------------
+        1 - Baixar posts vazios: %{get_empty_posts}
+        2 - Baixar posts mais antigos primeiro: %{process_from_oldest}
+        3 - Para posts individuais, criar um arquivo com informações (título, descrição, etc.): %{save_info}
+        4 - Escolher o tipo de arquivo para salvar as informações (Markdown ou TXT): %{post_info}
+        5 - Voltar ao menu principal

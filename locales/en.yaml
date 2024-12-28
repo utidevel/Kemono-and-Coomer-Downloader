@@ -1,0 +1,73 @@
+logo: |
+    '
+     _  __                                                   
+    | |/ /___ _ __ ___   ___  _ __   ___                     
+    | ' // _ \ '_ ` _ \ / _ \| '_ \ / _ \                    
+    | . \  __/ | | | | | (_) | | | | (_) |                   
+    |_|\_\___|_| |_| |_|\___/|_| |_|\___/                    
+     / ___|___   ___  _ __ ___   ___ _ __                    
+    | |   / _ \ / _ \| '_ ` _ \ / _ \ '__|                   
+    | |__| (_) | (_) | | | | | |  __/ |                      
+     \____\___/ \___/|_| |_| |_|\___|_|          _           
+    |  _ \  _____      ___ __ | | ___   __ _  __| | ___ _ __ 
+    | | | |/ _ \ \ /\ / / '_ \| |/ _ \ / _` |/ _` |/ _ \ '__|
+    | |_| | (_) \ V  V /| | | | | (_) | (_| | (_| |  __/ |   
+    |____/ \___/ \_/\_/ |_| |_|_|\___/ \__,_|\__,_|\___|_|   
+    
+    Created by E43b and forked by utidevel
+    GitHub: https://github.com/utidevel
+    Original GitHub: https://github.com/e43b
+    Discord: https://discord.gg/GNJbxzD8bK
+    Project Repository: https://github.com/utidevel/Kemono-and-Coomer-Downloader
+    Original Project Repository: https://github.com/e43b/Kemono-and-Coomer-Downloader
+    Donate: https://ko-fi.com/e43bs
+    '
+
+file_not_found: "Error: The file '%{file_path}' was not found."
+config_not_found: "Configuration not found"
+config_errors: "Configuration has errors"
+config_saved: "Configuration successfully saved to %{file_path}"
+error_saving_config: "Error saving configuration to %{file_path}"
+invalid_search_mode: "Invalid search mode"
+found_both_ids: "Found both IDs: %{id1} e %{id2}"
+download_attempt: "Attempt %{text1} to download %{text2}"
+download_success: "\nDownload %{file_url} success. File size is correct: %{downloaded_size} bytes."
+download_incomplete: "\nDownload %{file_url} incomplete. Expected %{total_size} bytes but got %{downloaded_size} bytes."
+could_not_complete: "not complete try again"
+download_success2: "\nDownload %{file_url} success"
+already_downloaded: "Already Downloaded Skipping"
+continue_download: "The link was not found in the database. Continue download"
+post_extract_complete: "Post extraction completed: %{total_posts} posts found"
+number_of_files: "Total number of files to download: %{total_files}"
+starting_downloads: "Starting post downloads"
+post_downloaded: "Post %{post_id} downloaded completely (%{current_files_count}/%{expected_files_count} files)"
+post_partially_downloaded: "Post {post_id} partially downloaded: {current_files_count}/{expected_files_count} files"
+post_download_error: "Error while downloading post %{post_id}"
+post_all_complete: "\nAll posts have been processed!"
+download_profile_posts: |
+        Download Profile Posts
+        -----------------------
+        1 - Download all posts from a profile
+        2 - Download posts from a specific page
+        3 - Downloading posts from a range of pages
+        4 - Downloading posts between two specific posts
+        5 - Back to the main menu
+download_profile_posts_choice: "\nEnter your choice (1/2/3/4/5): "
+choose_an_option: |
+        Choose an option:
+        1 - Download all posts from a profile
+        2 - Customize the program settings
+        3 - remove database
+        4 - Exit the program
+choose_an_option_choice: "\nEnter your choice (1/2/3/4): "
+leave_program: "Leaving the program. See you later!"
+invalid_option: "Invalid option. Press Enter to continue..."
+invalid_option_try_again: "Invalid option. Please try again."
+customize_settings: |
+        Customize Settings
+        -----------------------
+        1 - Take empty posts: %{get_empty_posts}
+        2 - Download older posts first: %{process_from_oldest}
+        3 - For individual posts, create a file with information (title, description, etc.): %{save_info}
+        4 - Choose the type of file to save the information (Markdown or TXT): %{post_info}
+        5 - Back to the main menu
