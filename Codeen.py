@@ -8,11 +8,9 @@ import time
 import math
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-
 import requests
 import yaml
 from peewee import SqliteDatabase, Model, CharField
-from pydantic import create_model
 from tqdm import tqdm
 
 
@@ -93,41 +91,13 @@ class Config:
         else:
             return None
 
-
-def install_requirements():
-    """Verifica e instala as dependências do requirements.txt."""
-    requirements_file = "requirements.txt"
-
-    if not os.path.exists(requirements_file):
-        print(f"Error: File {requirements_file} not found.")
-        return
-
-    with open(requirements_file, 'r', encoding='utf-8') as req_file:
-        for line in req_file:
-            # Lê cada linha, ignora vazias ou comentários
-            package = line.strip()
-            if package and not package.startswith("#"):
-                try:
-                    # Tenta importar o pacote para verificar se já está instalado
-                    package_name = package.split("==")[0]  # Ignora versão específica na importação
-                    importlib.import_module(package_name)
-                except ImportError:
-                    # Se falhar, instala o pacote usando pip
-                    print(f"Installing the package: {package}")
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-
 class Posts:
 
     def __init__(self, config: Config):
         self.config: Config = config
 
-    def save_json(self,file_path, data):
-        """Helper function to save JSON files with UTF-8 encoding and pretty formatting"""
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-
-    def get_base_config(self,profile_url):
+    @staticmethod
+    def get_base_config(profile_url):
         """
         Dynamically configure base URLs and directories based on the profile URL domain
         """
@@ -137,13 +107,14 @@ class Posts:
         if domain not in ['kemono.su', 'coomer.su']:
             raise ValueError(f"Unsupported domain: {domain}")
 
-        BASE_API_URL = f"https://{domain}/api/v1"
-        BASE_SERVER = f"https://{domain}"
-        BASE_DIR = domain.split('.')[0]  # 'kemono' or 'coomer'
+        base_api_url = f"https://{domain}/api/v1"
+        base_server = f"https://{domain}"
+        base_dir = domain.split('.')[0]  # 'kemono' or 'coomer'
 
-        return BASE_API_URL, BASE_SERVER, BASE_DIR
+        return base_api_url, base_server, base_dir
 
-    def is_offset(self,value):
+    @staticmethod
+    def is_offset(value):
         """Determina se o valor é um offset (até 5 dígitos) ou um ID."""
         try:
             # Tenta converter para inteiro e verifica o comprimento
@@ -198,7 +169,8 @@ class Posts:
 
         raise ValueError(f"Modo de busca inválido: {fetch_mode}")
 
-    def get_artist_info(self,profile_url):
+    @staticmethod
+    def get_artist_info(profile_url):
         # Extrair serviço e user_id do URL
         parts = profile_url.split("/")
         service = parts[-3]
@@ -212,7 +184,8 @@ class Posts:
         response.raise_for_status()
         return response.json()
 
-    def save_json_incrementally(self,file_path, new_posts, start_offset, end_offset):
+    @staticmethod
+    def save_json_incrementally(file_path, new_posts, start_offset, end_offset):
         # Criar um novo dicionário com os posts atuais
         data = {
             "total_posts": len(new_posts),
@@ -223,7 +196,8 @@ class Posts:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
-    def process_posts(self,posts, previews, attachments_data, page_number, offset, base_server, save_empty_files=True,
+    @staticmethod
+    def process_posts(posts, previews, attachments_data, page_number, offset, base_server, save_empty_files=True,
                       id_filter=None):
         # Processar posts e organizar os links dos arquivos
         processed = []
@@ -276,7 +250,8 @@ class Posts:
 
         return processed
 
-    def sanitize_filename(self,value):
+    @staticmethod
+    def sanitize_filename(value):
         """Remove caracteres que podem quebrar a criação de pastas."""
         return value.replace("/", "_").replace("\\", "_")
 
@@ -286,10 +261,10 @@ class Posts:
         SAVE_EMPTY_FILES = self.config.get_empty_posts  # Alterar para True se quiser salvar posts sem arquivos
 
         # Configurar base URLs dinamicamente
-        BASE_API_URL, BASE_SERVER, BASE_DIR = self.get_base_config(profile_url)
+        base_api_url, base_server, base_dir = self.get_base_config(profile_url)
 
         # Pasta base
-        base_dir = BASE_DIR
+        base_dir = base_dir
         os.makedirs(base_dir, exist_ok=True)
 
         # Atualizar o arquivo profiles.json
@@ -302,7 +277,7 @@ class Posts:
 
         # Fetch the first set of posts for general information
         service, user_id = self.get_artist_info(profile_url)
-        initial_data = self.fetch_posts(BASE_API_URL, service, user_id, offset=0)
+        initial_data = self.fetch_posts(base_api_url, service, user_id, offset=0)
         name = initial_data["props"]["name"]
         count = initial_data["props"]["count"]
 
@@ -317,7 +292,6 @@ class Posts:
             "relation_id": initial_data["props"]["artist"]["relation_id"],
         }
         profiles[user_id] = artist_info
-        self.save_json(profiles_file, profiles)
 
         # Sanitizar os valores
         safe_name = self.sanitize_filename(name)
@@ -363,7 +337,7 @@ class Posts:
         # Main processing
         for offset in offsets:
             page_number = (offset // 50) + 1
-            post_data = self.fetch_posts(BASE_API_URL, service, user_id, offset=offset)
+            post_data = self.fetch_posts(base_api_url, service, user_id, offset=offset)
             posts = post_data["results"]
             previews = [item for sublist in post_data.get("result_previews", []) for item in sublist]
             attachments = [item for sublist in post_data.get("result_attachments", []) for item in sublist]
@@ -374,7 +348,7 @@ class Posts:
                 attachments,
                 page_number,
                 offset,
-                BASE_SERVER,
+                base_server,
                 save_empty_files=SAVE_EMPTY_FILES,
                 id_filter=id_filter
             )
@@ -416,7 +390,8 @@ class Down:
 
         return DownloadedPosts
 
-    def sanitize_filename(self, filename):
+    @staticmethod
+    def sanitize_filename(filename):
         """Sanitize filename by removing invalid characters and replacing spaces with underscores."""
         filename = re.sub(r'[\\/*?\"<>|]', '', filename)
         return filename.replace(' ', '_')
@@ -486,7 +461,7 @@ class Down:
             sanitized_name = self.sanitize_filename(original_name)
             new_filename = f"{file_index}-{sanitized_name}"
             file_save_path = os.path.join(post_folder, new_filename)
-            yield (file_url, file_save_path)
+            yield file_url, file_save_path
 
     def run(self, json_file_path: str):
         # Verifica se o arquivo existe
@@ -530,11 +505,13 @@ class Codeen:
         self.down = Down(self.config)
         self.posts = Posts(self.config)
 
-    def clear_screen(self):
+    @staticmethod
+    def clear_screen():
         """Limpa a tela do console de forma compatível com diferentes sistemas operacionais"""
         os.system('self' if os.name == 'nt' else 'clear')
 
-    def display_logo(self):
+    @staticmethod
+    def display_logo():
         """Exibe o logo do projeto"""
         logo = """
      _  __                                                   
@@ -560,7 +537,8 @@ class Codeen:
     """
         print(logo)
 
-    def normalize_path(self, path):
+    @staticmethod
+    def normalize_path(path):
         """
         Normaliza o caminho do arquivo para lidar com caracteres não-ASCII
         """
@@ -675,63 +653,7 @@ class Codeen:
 
         except Exception as e:
             print(f"Unexpected error: {e}")
-            # Adicionar mais detalhes para diagnóstico
-            import traceback
-            traceback.print_exc()
-
-    def download_specific_posts(self):
-        """Opção para baixar posts específicos"""
-        self.clear_screen()
-        self.display_logo()
-        print("Download 1 post or a few separate posts")
-        print("------------------------------------")
-        print("Choose the input method:")
-        print("1 - Enter the links directly")
-        print("2 - Loading links from a TXT file")
-        print("3 - Back to the main menu")
-        choice = input("\nEnter your choice (1/2/3): ")
-
-        links = []
-
-        if choice == '3':
-            return
-
-        elif choice == '1':
-            print("Paste the links to the posts (separated by commas):")
-            links = input("Links: ").split(',')
-        elif choice == '2':
-            file_path = input("Enter the path to the TXT file: ").strip()
-            if os.path.exists(file_path):
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    content = file.read()
-                    links = content.split(',')
-            else:
-                print(f"Error: The file '{file_path}' was not found.")
-                input("\nPress Enter to continue...")
-                return
-        else:
-            print("Invalid option. Return to the previous menu.")
-            input("\nPress Enter to continue...")
-            return
-
-        links = [link.strip() for link in links if link.strip()]
-
-        for link in links:
-            try:
-                domain = link.split('/')[2]
-                if domain == 'kemono.su':
-                    import codes.kcposts as kcposts
-                    kcposts.run(link)
-                elif domain == 'coomer.su':
-                    import codes.kcposts as kcposts
-                    kcposts.run(link)
-                else:
-                    print(f"Domain not supported: {domain}")
-                    continue
-            except Exception as e:
-                print(f"There has been an error downlaoding {link} - {e}")
-
-        input("\nPress Enter to continue...")
+            raise e
 
     def download_profile_posts(self):
         """Opção para baixar posts de um perfil"""
@@ -798,10 +720,10 @@ class Codeen:
             self.display_logo()
             print("Customize Settings")
             print("------------------------")
-            print(f"1 - Take empty posts: {config['get_empty_posts']}")
-            print(f"2 - Download older posts first: {config['process_from_oldest']}")
-            print(f"3 - For individual posts, create a file with information (title, description, etc.): {config['save_info']}")
-            print(f"4 - Choose the type of file to save the information (Markdown or TXT): {config['post_info']}")
+            print(f"1 - Take empty posts: {self.config.get_empty_posts}")
+            print(f"2 - Download older posts first: {self.config.process_from_oldest}")
+            print(f"3 - For individual posts, create a file with information (title, description, etc.): {self.config.save_info}")
+            print(f"4 - Choose the type of file to save the information (Markdown or TXT): {self.config.post_info}")
             print("5 - Back to the main menu")
 
             choice = input("\nChoose an option (1/2/3/4/5): ")
@@ -833,23 +755,18 @@ class Codeen:
             self.clear_screen()
             self.display_logo()
             print("Choose an option:")
-            print("1 - Download 1 post or a few separate posts")
-            print("2 - Download all posts from a profile")
-            print("3 - Customize the program settings")
-            print("4 - remove database")
-            print("5 - Exit the program")
-
+            print("1 - Download all posts from a profile")
+            print("2 - Customize the program settings")
+            print("3 - remove database")
+            print("4 - Exit the program")
             choice = input("\nEnter your choice (1/2/3/4): ")
-
             if choice == '1':
-                self.download_specific_posts()
-            elif choice == '2':
                 self.download_profile_posts()
-            elif choice == '3':
+            elif choice == '2':
                 self.customize_settings()
-            elif choice == '4':
+            elif choice == '3':
                 os.remove("downloaded.db")
-            elif choice == '5':
+            elif choice == '4':
                 print("Leaving the program. See you later!")
                 break
             else:
@@ -857,7 +774,4 @@ class Codeen:
 
 
 if __name__ == "__main__":
-    print("Checking dependencies...")
-    install_requirements()
-    print("Verified dependencies.\n")
     Codeen().main_menu()
