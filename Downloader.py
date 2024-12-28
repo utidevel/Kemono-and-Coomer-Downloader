@@ -382,17 +382,17 @@ class Down:
 
 class Downloader:
     def __init__(self):
+        """
+        Initialize the downloader with system locale and configurations.
+        """
         system_locale, _ = locale.getdefaultlocale()
         language_code = system_locale.split("_")[0]
         i18n.set("locale", language_code)
-
         i18n.set('filename_format', '{locale}.{format}')
         i18n.set('file_format', 'yaml')
         i18n.set('skip_locale_root_data', True)
         i18n.load_path.append("locales")
         i18n.set("locale", "en")
-
-        # print(i18n.t("bla"))
 
         self.config = Config.from_yaml("conf.yaml")
         self.down = Down(self.config)
@@ -400,144 +400,129 @@ class Downloader:
 
     @staticmethod
     def display_logo():
+        """
+        Display the application logo.
+        """
         print(i18n.t("logo"))
 
     def run_download_script(self, base_dir, service, user_id, username, json_posts):
-        """Roda o script de download com o JSON gerado e faz tracking detalhado em tempo real"""
+        """
+        Run the download script with the given JSON posts and provide detailed tracking.
+        """
         try:
-
-            # Análise inicial
             total_posts = len(json_posts)
-
-            # Contagem de arquivos
             total_files = sum(len(post['files']) for post in json_posts)
 
-            # Imprimir informações iniciais
             print(i18n.t("post_extract_complete", total_posts=total_posts))
             print(i18n.t("number_of_files", total_files=total_files))
             print(i18n.t("starting_downloads"))
 
-            # Determinar ordem de processamento
-
+            # Sort posts based on configuration
             json_posts = sorted(json_posts, key=lambda x: x['id'], reverse=self.config.process_from_oldest)
 
-            # Base folder for posts using path normalization
-            posts_folder = os.path.join(base_dir, service, f"{username} - {user_id}")
+            # Normalize base folder for posts
+            posts_folder = str(os.path.join(base_dir, service, f"{username} - {user_id}"))
 
-            # Processar cada post
             for post in json_posts:
-                # Encontrar dados do post específico
-
-                # Pasta do post específico com normalização
                 post_folder = os.path.join(posts_folder, "posts", post['id'])
-
-                # Contar número de arquivos no JSON para este post
                 expected_files_count = len(post['files'])
 
                 try:
-
                     self.down.run(posts_folder, post)
-                    # Após o download, verificar novamente os arquivos
-                    current_files = [f for f in os.listdir(post_folder) if os.path.isfile(os.path.join(post_folder, f))]
-                    current_files_count = len(current_files)
+                    current_files_count = len([
+                        f for f in os.listdir(post_folder)
+                        if os.path.isfile(os.path.join(post_folder, f))
+                    ])
 
-                    # Verificar o resultado do download
                     if current_files_count == expected_files_count:
                         print(i18n.t("post_downloaded", post_id=post['id'], current_files_count=current_files_count, expected_files_count=expected_files_count))
                     else:
                         print(i18n.t("post_partially_downloaded", post_id=post['id'], current_files_count=current_files_count, expected_files_count=expected_files_count))
 
                 except Exception as e:
-                    print(f"{i18n.t("post_download_error", post_id=post['id'])}: {e}")
-
-                    # Pequeno delay para evitar sobrecarga
+                    print(f"{i18n.t('post_download_error', post_id=post['id'])}: {e}")
                     time.sleep(0.5)
 
             print(i18n.t("post_all_complete"))
 
         except Exception as e:
             print(f"Unexpected error: {e}")
-            raise e
+            raise
 
     def download_profile_posts(self):
-        """Option to download posts from a profile"""
+        """
+        Download posts from a profile.
+        """
         self.display_logo()
         print(i18n.t("download_profile_posts"))
 
         choice = input(i18n.t("download_profile_posts_choice"))
 
-        if choice == '5':
-            return
+
 
         profile_link = input("Paste the profile link: ")
-
         try:
             json_posts = None
-
             if choice == '1':
                 base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, 'all')
-
             elif choice == '2':
                 page = input("Enter the page number (0 = first page, 50 = second, etc.): ")
                 base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, page)
-
             elif choice == '3':
                 start_page = input("Enter the start page (start, 0, 50, 100, etc.): ")
                 end_page = input("Enter the final page (or use end, 300, 350, 400): ")
                 base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, f"{start_page}-{end_page}")
-
             elif choice == '4':
                 first_post = input("Paste the link or ID of the first post: ")
                 second_post = input("Paste the link or ID from the second post: ")
-
                 first_id = first_post.split('/')[-1] if '/' in first_post else first_post
                 second_id = second_post.split('/')[-1] if '/' in second_post else second_post
-
                 base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, f"{first_id}-{second_id}")
+            else:
+                return
 
-            # Se um JSON foi gerado, roda o script de download
             if json_posts:
                 self.run_download_script(base_dir, service, user_id, name, json_posts)
             else:
                 print("The JSON path could not be found.")
 
         except Exception as e:
-            raise e
+            print(f"Error processing profile: {e}")
 
         input("\nPress Enter to continue...")
 
     def customize_settings(self):
-        config: Config = Config.from_yaml("conf.yaml")
+        """
+        Customize application settings via an interactive menu.
+        """
+        config = Config.from_yaml("conf.yaml")
 
         while True:
             self.display_logo()
-
             print(i18n.t("customize_settings", get_empty_posts=self.config.get_empty_posts, process_from_oldest=self.config.process_from_oldest, save_info=self.config.save_info, post_info=self.config.post_info))
             choice = input(i18n.t("download_profile_posts_choice"))
 
             if choice == '1':
                 config.get_empty_posts = not config.get_empty_posts
             elif choice == '2':
-                config.process_from_oldest = config.process_from_oldest
+                config.process_from_oldest = not config.process_from_oldest
             elif choice == '3':
                 config.save_info = not config.save_info
             elif choice == '4':
-                # Alternar entre "md" e "txt"
                 config.post_info = 'txt' if config.post_info == 'md' else 'md'
             elif choice == '5':
-                # Sair do menu de configurações
                 break
             else:
                 print(i18n.t("invalid_option_try_again"))
 
-            # Salvar as configurações no arquivo
             config.save_to_yaml("conf.yaml")
-
             print("\nUpdated configurations.")
             time.sleep(1)
 
     def main_menu(self):
-        """Menu principal do aplicativo"""
+        """
+        Main menu of the application.
+        """
         while True:
             self.display_logo()
             print(i18n.t("choose_an_option"))
@@ -553,7 +538,7 @@ class Downloader:
                 print(i18n.t("leave_program"))
                 break
             else:
-                input(i18n.t("invalid_option"))
+                print(i18n.t("invalid_option"))
 
 
 if __name__ == "__main__":
