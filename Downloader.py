@@ -258,9 +258,6 @@ class Posts:
         # Configure base URLs dynamically
         base_api_url, base_server, base_dir = self.get_base_config(profile_url)
 
-        # Pasta base
-        os.makedirs(base_dir, exist_ok=True)
-
         # Fetch the first set of posts for general information
         service, user_id = self.get_artist_info(profile_url)
         initial_data = self.fetch_posts(base_api_url, service, user_id, offset=0)
@@ -317,7 +314,7 @@ class Posts:
             )
             # Save incremental posts to JSON
 
-        return safe_service, safe_user_id, safe_name, processed_posts
+        return base_dir, safe_service, safe_user_id, safe_name, processed_posts
 
 class Down:
     def __init__(self, config: Config):
@@ -412,38 +409,23 @@ class Down:
             file_save_path = os.path.join(post_folder, new_filename)
             yield file_url, file_save_path
 
-    def run(self, json_file_path: str):
-        # Verifica se o arquivo existe
-        if not os.path.exists(json_file_path):
-            print(f"Error: The file '{json_file_path}' was not found.")
-            sys.exit(1)
-
-        # Load the JSON file
-        with open(json_file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+    def run(self, base_folder, post_json):
 
         # Base folder for posts
-        base_folder = os.path.join(os.path.dirname(json_file_path), "posts")
+        base_folder = os.path.join(base_folder, "posts")
         os.makedirs(base_folder, exist_ok=True)
 
-        # Caminho para o arquivo de configuração
-        config_file_path = os.path.join("config", "conf.json")
-
-        posts = data.get("posts", [])
-        if self.config.process_from_oldest:
-            posts = reversed(posts)
-
         # Process each post sequentially
-        for post_index, post in enumerate(posts, start=1):
-            try:
-                self.model.get(self.model.value == post.get("id"))
-                print(i18n.t("already_downloaded"))
-                continue
-            except Exception:
-                print(i18n.t("continue_download"))
-            self.process_post(post, base_folder)
-            self.model.create(value=post.get("id"))
-            time.sleep(2)  # Wait 2 seconds between posts
+
+        try:
+            self.model.get(self.model.value == post_json.get("id"))
+            print(i18n.t("already_downloaded"))
+
+        except Exception:
+            print(i18n.t("continue_download"))
+        self.process_post(post_json, base_folder)
+        self.model.create(value=post_json.get("id"))
+        time.sleep(2)  # Wait 2 seconds between posts
 
 
 class Downloader:
@@ -469,13 +451,12 @@ class Downloader:
         print(i18n.t("logo"))
 
 
-    def run_download_script(self, service, user_id, username, json_posts):
+    def run_download_script(self, base_dir, service, user_id, username, json_posts):
         """Roda o script de download com o JSON gerado e faz tracking detalhado em tempo real"""
         try:
 
             # Análise inicial
             total_posts = len(json_posts)
-            post_ids = [post['id'] for post in json_posts]
 
             # Contagem de arquivos
             total_files = sum(len(post['files']) for post in json_posts)
@@ -486,51 +467,37 @@ class Downloader:
             print(i18n.t("starting_downloads"))
 
             # Determinar ordem de processamento
-            if self.config.process_from_oldest:
-                post_ids = sorted(post_ids)  # Ordem do mais antigo ao mais recente
-            else:
-                post_ids = sorted(post_ids, reverse=True)  # Ordem do mais recente ao mais antigo
+
+            json_posts = sorted(json_posts, key=lambda x: x['id'], reverse=self.config.process_from_oldest)
 
             # Base folder for posts using path normalization
-            posts_folder = os.path.join(service,f"{username} - {user_id}")
-            os.makedirs(posts_folder, exist_ok=True)
+            posts_folder = os.path.join(base_dir, service,f"{username} - {user_id}")
 
             # Processar cada post
-            for idx, post_id in enumerate(post_ids, 1):
+            for post in json_posts:
                 # Encontrar dados do post específico
-                post_data = next((p for p in json_posts if p['id'] == post_id), None)
 
-                if post_data:
-                    # Pasta do post específico com normalização
-                    post_folder = os.path.join(posts_folder, post_id)
-                    os.makedirs(post_folder, exist_ok=True)
+                # Pasta do post específico com normalização
+                post_folder = os.path.join(posts_folder, "posts" ,post['id'])
 
-                    # Contar número de arquivos no JSON para este post
-                    expected_files_count = len(post_data['files'])
+                # Contar número de arquivos no JSON para este post
+                expected_files_count = len(post['files'])
 
-                    # Contar arquivos já existentes na pasta
-                    existing_files = [f for f in os.listdir(post_folder) if os.path.isfile(os.path.join(post_folder, f))]
-                    existing_files_count = len(existing_files)
+                try:
 
-                    # Se já tem todos os arquivos, pula o download
-                    if existing_files_count == expected_files_count:
-                        continue
+                    self.down.run(posts_folder, post)
+                    # Após o download, verificar novamente os arquivos
+                    current_files = [f for f in os.listdir(post_folder) if os.path.isfile(os.path.join(post_folder, f))]
+                    current_files_count = len(current_files)
 
-                    try:
+                    # Verificar o resultado do download
+                    if current_files_count == expected_files_count:
+                        print(i18n.t("post_downloaded",post_id=post['id'],current_files_count=current_files_count,expected_files_count=expected_files_count))
+                    else:
+                        print(i18n.t("post_partially_downloaded",post_id=post['id'],current_files_count=current_files_count,expected_files_count=expected_files_count))
 
-                        self.down.run(json_posts)
-                        # Após o download, verificar novamente os arquivos
-                        current_files = [f for f in os.listdir(post_folder) if os.path.isfile(os.path.join(post_folder, f))]
-                        current_files_count = len(current_files)
-
-                        # Verificar o resultado do download
-                        if current_files_count == expected_files_count:
-                            print(i18n.t("post_downloaded",post_id=post_id,current_files_count=current_files_count,expected_files_count=expected_files_count))
-                        else:
-                            print(i18n.t("post_partially_downloaded",post_id=post_id,current_files_count=current_files_count,expected_files_count=expected_files_count))
-
-                    except Exception as e:
-                        print(f"{i18n.t("post_download_error",post_id=post_id)}: {e}")
+                except Exception as e:
+                    print(f"{i18n.t("post_download_error",post_id=post['id'])}: {e}")
 
                     # Pequeno delay para evitar sobrecarga
                     time.sleep(0.5)
@@ -557,16 +524,16 @@ class Downloader:
             json_posts = None
 
             if choice == '1':
-                service, user_id, name, json_posts = self.posts.run(profile_link, 'all')
+                base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, 'all')
 
             elif choice == '2':
                 page = input("Enter the page number (0 = first page, 50 = second, etc.): ")
-                service, user_id, name, json_posts = self.posts.run(profile_link, page)
+                base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, page)
 
             elif choice == '3':
                 start_page = input("Enter the start page (start, 0, 50, 100, etc.): ")
                 end_page = input("Enter the final page (or use end, 300, 350, 400): ")
-                service, user_id, name, json_posts = self.posts.run(profile_link, f"{start_page}-{end_page}")
+                base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, f"{start_page}-{end_page}")
 
             elif choice == '4':
                 first_post = input("Paste the link or ID of the first post: ")
@@ -575,11 +542,11 @@ class Downloader:
                 first_id = first_post.split('/')[-1] if '/' in first_post else first_post
                 second_id = second_post.split('/')[-1] if '/' in second_post else second_post
 
-                service, user_id, name, json_posts =self.posts.run(profile_link, f"{first_id}-{second_id}")
+                base_dir, service, user_id, name, json_posts =self.posts.run(profile_link, f"{first_id}-{second_id}")
 
             # Se um JSON foi gerado, roda o script de download
             if json_posts:
-                self.run_download_script(service, user_id, name, json_posts)
+                self.run_download_script(base_dir, service, user_id, name, json_posts)
             else:
                 print("The JSON path could not be found.")
 
