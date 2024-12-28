@@ -1,93 +1,82 @@
-import json
 import locale
+import math
 import os
 import re
-import sys
 import time
-import math
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+
+import i18n
 import requests
 import yaml
 from peewee import SqliteDatabase, Model, CharField
 from tqdm import tqdm
-import i18n
 
+
+@dataclass
 class Config:
-
-    def __init__(self, proxy_username: str, proxy_password: str, proxy_url: str, save_info:bool, post_info:str, process_from_oldest:bool, get_empty_posts:bool, debug_verify_ssl:bool):
-        self.proxy_username: str = proxy_username
-        self.proxy_password: str = proxy_password
-        self.proxy_url: str = proxy_url
-        self.save_info: bool = save_info
-        self.post_info: str = post_info
-        self.process_from_oldest: bool = process_from_oldest
-        self.get_empty_posts: bool = get_empty_posts
-        self.debug_verify_ssl: bool = debug_verify_ssl
+    proxy_username: str = field(default=None)
+    proxy_password: str = field(default=None)
+    proxy_url: str = field(default=None)
+    save_info: bool = field(default=False)
+    post_info: str = field(default=None)
+    process_from_oldest: bool = field(default=False)
+    get_empty_posts: bool = field(default=False)
+    debug_verify_ssl: bool = field(default=True)
 
     @classmethod
     def from_yaml(cls, file_path: str) -> "Config":
         """
-        Loads configuration from a YAML file and returns a Config instance.
-
-        :param file_path: Path to the YAML file.
-        :return: An instance of Config.
+        Load configuration from a YAML file and return a Config instance.
         """
         try:
             with open(file_path, 'r') as file:
-                data = yaml.safe_load(file)
-            return cls(
-                proxy_username=data.get('proxy_username', None),
-                proxy_password=data.get('proxy_password', None),
-                proxy_url=data.get('proxy_url', False),
-                save_info=data.get('save_info', False),
-                post_info=data.get('post_info', False),
-                process_from_oldest=data.get('process_from_oldest', False),
-                get_empty_posts=data.get('get_empty_posts', False),
-                debug_verify_ssl=data.get('debug_verify_ssl', True)
-            )
+                data = yaml.safe_load(file) or {}
+            return cls(**data)
         except FileNotFoundError:
             print(i18n.t("file_not_found", file_path=file_path))
             raise Exception(i18n.t("config_not_found"))
         except yaml.YAMLError as e:
-            raise Exception(i18n.t("config_errors"))
+            raise Exception(i18n.t("config_errors")) from e
 
-    def save_to_yaml(self, file_path):
+    def save_to_yaml(self, file_path: str):
         """
-        Saves the current configuration back to the YAML file.
-
-        :param file_path: Path to the YAML file to save the data.
+        Save the current configuration to a YAML file.
         """
-        data = {
-            'proxy_username': self.proxy_username,
-            'proxy_password': self.proxy_password,
-            'proxy_url': self.proxy_url,
-            'save_info': self.save_info,
-            'post_info': self.post_info,
-            'process_from_oldest': self.process_from_oldest,
-            'get_empty_posts': self.get_empty_posts,
-        }
         try:
             with open(file_path, 'w') as file:
-                yaml.dump(data, file, default_flow_style=False)
-            print(i18n.t("config_saved",file_path=file_path))
+                yaml.dump(vars(self), file, default_flow_style=False)
+            print(i18n.t("config_saved", file_path=file_path))
         except Exception as e:
-            print(f"{i18n.t("error_saving_config",file_path=file_path)}:{e}")
+            print(f"{i18n.t('error_saving_config', file_path=file_path)}: {e}")
 
     def __str__(self):
-        return (f"ProxyConfig("
+        masked_password = '*' * len(self.proxy_password) if self.proxy_password else None
+        return (f"Config("
                 f"proxy_username='{self.proxy_username}', "
-                f"proxy_password='{'*' * len(self.proxy_password)}', "  # Mask the password
+                f"proxy_password='{masked_password}', "
                 f"proxy_url='{self.proxy_url}', "
                 f"save_info={self.save_info}, "
                 f"post_info={self.post_info}, "
                 f"process_from_oldest={self.process_from_oldest}, "
-                f"get_empty_posts={self.get_empty_posts})")
+                f"get_empty_posts={self.get_empty_posts}, "
+                f"debug_verify_ssl={self.debug_verify_ssl})")
 
     def get_requests_proxy(self):
-        if self.proxy_url is not None and self.proxy_url.strip() != '':
-            return {'http': f"http://{self.proxy_username}:{self.proxy_password}@{self.proxy_url}", 'https': f"http://s{self.proxy_username}:{self.proxy_password}@{self.proxy_url}"}
-        else:
-            return None
+        """
+        Get a dictionary of proxies for requests.
+        """
+        if self.proxy_url and self.proxy_url.strip():
+            if self.proxy_username and self.proxy_password:
+                auth = f"{self.proxy_username}:{self.proxy_password}@"
+            else:
+                auth = ""
+            return {
+                'http': f"http://{auth}{self.proxy_url}",
+                'https': f"http://{auth}{self.proxy_url}"
+            }
+        return None
+
 
 class Posts:
 
@@ -175,10 +164,10 @@ class Posts:
         user_id = parts[-1]
         return service, user_id
 
-    def fetch_posts(self,base_api_url, service, user_id, offset=0):
+    def fetch_posts(self, base_api_url, service, user_id, offset=0):
         # Buscar posts da API
         url = f"{base_api_url}/{service}/user/{user_id}/posts-legacy?o={offset}"
-        response = requests.get(url,proxies=self.config.get_requests_proxy(), verify=self.config.debug_verify_ssl)
+        response = requests.get(url, proxies=self.config.get_requests_proxy(), verify=self.config.debug_verify_ssl)
         response.raise_for_status()
         return response.json()
 
@@ -195,8 +184,7 @@ class Posts:
     #         json.dump(data, f, indent=4, ensure_ascii=False)
 
     @staticmethod
-    def process_posts(posts, previews, attachments_data, page_number, offset, base_server, save_empty_files=True,
-                      id_filter=None):
+    def process_posts(posts, previews, attachments_data, page_number, offset, base_server, save_empty_files=True, id_filter=None):
         # Processar posts e organizar os links dos arquivos
         processed = []
         for post in posts:
@@ -204,26 +192,14 @@ class Posts:
             if id_filter and not id_filter(post['id']):
                 continue
 
-            result = {
-                "id": post["id"],
-                "user": post["user"],
-                "service": post["service"],
-                "title": post["title"],
-                "link": f"{base_server}/{post['service']}/user/{post['user']}/post/{post['id']}",
-                "page": page_number,
-                "offset": offset,
-                "files": []
-            }
+            result = {"id": post["id"], "user": post["user"], "service": post["service"], "title": post["title"], "link": f"{base_server}/{post['service']}/user/{post['user']}/post/{post['id']}", "page": page_number, "offset": offset, "files": []}
 
             # Combina previews e attachments_data em uma única lista para busca
             all_data = previews + attachments_data
 
             # Processar arquivos no campo file
             if "file" in post and post["file"]:
-                matching_data = next(
-                    (item for item in all_data if item["path"] == post["file"]["path"]),
-                    None
-                )
+                matching_data = next((item for item in all_data if item["path"] == post["file"]["path"]), None)
                 if matching_data:
                     file_url = f"{matching_data['server']}/data{post['file']['path']}"
                     if file_url not in [f["url"] for f in result["files"]]:
@@ -231,10 +207,7 @@ class Posts:
 
             # Processar arquivos no campo attachments
             for attachment in post.get("attachments", []):
-                matching_data = next(
-                    (item for item in all_data if item["path"] == attachment["path"]),
-                    None
-                )
+                matching_data = next((item for item in all_data if item["path"] == attachment["path"]), None)
                 if matching_data:
                     file_url = f"{matching_data['server']}/data{attachment['path']}"
                     if file_url not in [f["url"] for f in result["files"]]:
@@ -253,7 +226,7 @@ class Posts:
         """Remove caracteres que podem quebrar a criação de pastas."""
         return value.replace("/", "_").replace("\\", "_")
 
-    def run(self,profile_url: str, fetch_mode: str):
+    def run(self, profile_url: str, fetch_mode: str):
 
         # Configure base URLs dynamically
         base_api_url, base_server, base_dir = self.get_base_config(profile_url)
@@ -264,12 +237,10 @@ class Posts:
         name = initial_data["props"]["name"]
         count = initial_data["props"]["count"]
 
-
         # Sanitizar os valores
         safe_name = self.sanitize_filename(name)
         safe_service = self.sanitize_filename(service)
         safe_user_id = self.sanitize_filename(user_id)
-
 
         try:
             offsets = self.parse_fetch_mode(fetch_mode, count)
@@ -292,7 +263,6 @@ class Posts:
             # Redefinir offsets para varrer todas as páginas
             offsets = list(range(0, count, 50))
 
-
         processed_posts = []
 
         for offset in offsets:
@@ -302,19 +272,10 @@ class Posts:
             previews = [item for sublist in post_data.get("result_previews", []) for item in sublist]
             attachments = [item for sublist in post_data.get("result_attachments", []) for item in sublist]
 
-            processed_posts += self.process_posts(
-                posts,
-                previews,
-                attachments,
-                page_number,
-                offset,
-                base_server,
-                save_empty_files=self.config.get_empty_posts,
-                id_filter=id_filter
-            )
-            # Save incremental posts to JSON
+            processed_posts += self.process_posts(posts, previews, attachments, page_number, offset, base_server, save_empty_files=self.config.get_empty_posts, id_filter=id_filter)  # Save incremental posts to JSON
 
         return base_dir, safe_service, safe_user_id, safe_name, processed_posts
+
 
 class Down:
     def __init__(self, config: Config):
@@ -360,7 +321,7 @@ class Down:
                 # Set up the tqdm progress bar
                 with open(save_path, 'wb') as f:
                     with tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024, desc="Downloading", leave=False  # Keep the progress bar on the same line
-                    ) as pbar:
+                              ) as pbar:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
@@ -370,10 +331,10 @@ class Down:
                 if downloaded_size == total_size:
                     print(i18n.t("download_success", file_url=file_url, downloaded_size=downloaded_size))
                 else:
-                    print(i18n.t("download_incomplete",file_url=file_url,total_size=total_size,downloaded_size=downloaded_size))
+                    print(i18n.t("download_incomplete", file_url=file_url, total_size=total_size, downloaded_size=downloaded_size))
                     raise Exception(i18n.t("could_not_complete"))
 
-                print(i18n.t("download_success2",file_url=file_url), flush=True)
+                print(i18n.t("download_success2", file_url=file_url), flush=True)
                 return  # Exit the function if download is successful
 
             except Exception as e:
@@ -450,7 +411,6 @@ class Downloader:
     def display_logo():
         print(i18n.t("logo"))
 
-
     def run_download_script(self, base_dir, service, user_id, username, json_posts):
         """Roda o script de download com o JSON gerado e faz tracking detalhado em tempo real"""
         try:
@@ -462,8 +422,8 @@ class Downloader:
             total_files = sum(len(post['files']) for post in json_posts)
 
             # Imprimir informações iniciais
-            print(i18n.t("post_extract_complete",total_posts=total_posts))
-            print(i18n.t("number_of_files",total_files=total_files))
+            print(i18n.t("post_extract_complete", total_posts=total_posts))
+            print(i18n.t("number_of_files", total_files=total_files))
             print(i18n.t("starting_downloads"))
 
             # Determinar ordem de processamento
@@ -471,14 +431,14 @@ class Downloader:
             json_posts = sorted(json_posts, key=lambda x: x['id'], reverse=self.config.process_from_oldest)
 
             # Base folder for posts using path normalization
-            posts_folder = os.path.join(base_dir, service,f"{username} - {user_id}")
+            posts_folder = os.path.join(base_dir, service, f"{username} - {user_id}")
 
             # Processar cada post
             for post in json_posts:
                 # Encontrar dados do post específico
 
                 # Pasta do post específico com normalização
-                post_folder = os.path.join(posts_folder, "posts" ,post['id'])
+                post_folder = os.path.join(posts_folder, "posts", post['id'])
 
                 # Contar número de arquivos no JSON para este post
                 expected_files_count = len(post['files'])
@@ -492,12 +452,12 @@ class Downloader:
 
                     # Verificar o resultado do download
                     if current_files_count == expected_files_count:
-                        print(i18n.t("post_downloaded",post_id=post['id'],current_files_count=current_files_count,expected_files_count=expected_files_count))
+                        print(i18n.t("post_downloaded", post_id=post['id'], current_files_count=current_files_count, expected_files_count=expected_files_count))
                     else:
-                        print(i18n.t("post_partially_downloaded",post_id=post['id'],current_files_count=current_files_count,expected_files_count=expected_files_count))
+                        print(i18n.t("post_partially_downloaded", post_id=post['id'], current_files_count=current_files_count, expected_files_count=expected_files_count))
 
                 except Exception as e:
-                    print(f"{i18n.t("post_download_error",post_id=post['id'])}: {e}")
+                    print(f"{i18n.t("post_download_error", post_id=post['id'])}: {e}")
 
                     # Pequeno delay para evitar sobrecarga
                     time.sleep(0.5)
@@ -542,7 +502,7 @@ class Downloader:
                 first_id = first_post.split('/')[-1] if '/' in first_post else first_post
                 second_id = second_post.split('/')[-1] if '/' in second_post else second_post
 
-                base_dir, service, user_id, name, json_posts =self.posts.run(profile_link, f"{first_id}-{second_id}")
+                base_dir, service, user_id, name, json_posts = self.posts.run(profile_link, f"{first_id}-{second_id}")
 
             # Se um JSON foi gerado, roda o script de download
             if json_posts:
@@ -561,7 +521,7 @@ class Downloader:
         while True:
             self.display_logo()
 
-            print(i18n.t("customize_settings",get_empty_posts=self.config.get_empty_posts, process_from_oldest=self.config.process_from_oldest,save_info=self.config.save_info, post_info=self.config.post_info))
+            print(i18n.t("customize_settings", get_empty_posts=self.config.get_empty_posts, process_from_oldest=self.config.process_from_oldest, save_info=self.config.save_info, post_info=self.config.post_info))
             choice = input(i18n.t("download_profile_posts_choice"))
 
             if choice == '1':
@@ -607,4 +567,3 @@ class Downloader:
 
 if __name__ == "__main__":
     Downloader().main_menu()
-
