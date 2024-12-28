@@ -300,13 +300,13 @@ class Posts:
         else:
             profiles = {}
 
-        # Buscar primeiro conjunto de posts para informações gerais
+        # Fetch the first set of posts for general information
         service, user_id = self.get_artist_info(profile_url)
         initial_data = self.fetch_posts(BASE_API_URL, service, user_id, offset=0)
         name = initial_data["props"]["name"]
         count = initial_data["props"]["count"]
 
-        # Salvar informações do artista
+        # Save artist information
         artist_info = {
             "id": user_id,
             "name": name,
@@ -353,14 +353,14 @@ class Posts:
             # Redefinir offsets para varrer todas as páginas
             offsets = list(range(0, count, 50))
 
-        # Nome do arquivo JSON com range de offsets
+        # Name of the JSON file with the range of offsets
         if len(offsets) > 1:
             file_path = os.path.join(artist_dir, f"posts-{offsets[0]}-{offsets[-1]}-{today}.json")
         else:
             file_path = os.path.join(artist_dir, f"posts-{offsets[0]}-{today}.json")
 
         new_posts = []
-        # Processamento principal
+        # Main processing
         for offset in offsets:
             page_number = (offset // 50) + 1
             post_data = self.fetch_posts(BASE_API_URL, service, user_id, offset=offset)
@@ -379,20 +379,20 @@ class Posts:
                 id_filter=id_filter
             )
             new_posts.extend(processed_posts)
-            # Salvar posts incrementais no JSON
+            # Save incremental posts to JSON
             if processed_posts:
                 self.save_json_incrementally(file_path, new_posts, offset, offset + 50)
 
-                # Verificar se encontrou os IDs desejados
+                # Check if the desired IDs were found
                 if id_filter:
                     found_ids.update(post['id'] for post in processed_posts)
 
-                    # Verificar se encontrou ambos os IDs
+                    # Check if both IDs were found
                     if (id1 in found_ids) and (id2 in found_ids):
                         print(f"Found both IDs: {id1} e {id2}")
                         break
 
-        # Imprimir o caminho completo do arquivo JSON gerado
+        # Print the full path of the generated JSON file
         print(f"{os.path.abspath(file_path)}")
         return f"{os.path.abspath(file_path)}"
 
@@ -472,22 +472,21 @@ class Down:
 
         print(f"Processing post ID {post_id}")
 
-        # Prepare downloads for this post
-        downloads = []
+        # Download files using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            for file_url, file_save_path in self.generate_downloads(post, post_folder):
+                executor.submit(self.download_file, file_url, file_save_path)
+
+        print(f"Post {post_id} downloaded")
+
+    def generate_downloads(self, post, post_folder):
         for file_index, file in enumerate(post.get("files", []), start=1):
             original_name = file.get("name")
             file_url = file.get("url")
             sanitized_name = self.sanitize_filename(original_name)
             new_filename = f"{file_index}-{sanitized_name}"
             file_save_path = os.path.join(post_folder, new_filename)
-            downloads.append((file_url, file_save_path))
-
-        # Download files using ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            for file_url, file_save_path in downloads:
-                executor.submit(self.download_file, file_url, file_save_path)
-
-        print(f"Post {post_id} downloaded")
+            yield (file_url, file_save_path)
 
     def run(self, json_file_path: str):
         # Verifica se o arquivo existe
@@ -577,7 +576,7 @@ class Codeen:
             # Identifica se está procurando em kemono ou coomer
             base_dir = None
             if 'kemono' in path_parts:
-                base_dir = 'kemono'
+                base_dir = 'codeen/kemono'
             elif 'coomer' in path_parts:
                 base_dir = 'coomer'
 

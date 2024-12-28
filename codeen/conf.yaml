@@ -1,8 +1,0 @@
-get_empty_posts: False
-process_from_oldest: False
-post_info: md
-save_info: True
-proxy_url: 127.0.0.1:8080
-proxy_username: bla
-proxy_password: bla
-debug_verify_ssl: False
