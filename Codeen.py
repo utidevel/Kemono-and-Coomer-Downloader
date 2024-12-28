@@ -1,10 +1,7 @@
-import gettext
-import importlib
 import json
 import locale
 import os
 import re
-import subprocess
 import sys
 import time
 import math
