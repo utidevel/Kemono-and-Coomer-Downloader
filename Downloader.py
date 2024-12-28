@@ -6,13 +6,11 @@ import sys
 import time
 import math
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 import requests
 import yaml
 from peewee import SqliteDatabase, Model, CharField
 from tqdm import tqdm
 import i18n
-
 
 class Config:
 
@@ -184,17 +182,17 @@ class Posts:
         response.raise_for_status()
         return response.json()
 
-    @staticmethod
-    def save_json_incrementally(file_path, new_posts, start_offset, end_offset):
-        # Criar um novo dicionário com os posts atuais
-        data = {
-            "total_posts": len(new_posts),
-            "posts": new_posts
-        }
-
-        # Salvar o novo arquivo, substituindo o existente
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+    # @staticmethod
+    # def save_json_incrementally(file_path, new_posts, start_offset, end_offset):
+    #     # Criar um novo dicionário com os posts atuais
+    #     data = {
+    #         "total_posts": len(new_posts),
+    #         "posts": new_posts
+    #     }
+    #
+    #     # Salvar o novo arquivo, substituindo o existente
+    #     with open(file_path, "w", encoding="utf-8") as f:
+    #         json.dump(data, f, indent=4, ensure_ascii=False)
 
     @staticmethod
     def process_posts(posts, previews, attachments_data, page_number, offset, base_server, save_empty_files=True,
@@ -257,23 +255,11 @@ class Posts:
 
     def run(self,profile_url: str, fetch_mode: str):
 
-        # Pegar o valor de 'process_from_oldest' da configuração
-        SAVE_EMPTY_FILES = self.config.get_empty_posts  # Alterar para True se quiser salvar posts sem arquivos
-
-        # Configurar base URLs dinamicamente
+        # Configure base URLs dynamically
         base_api_url, base_server, base_dir = self.get_base_config(profile_url)
 
         # Pasta base
-        base_dir = base_dir
         os.makedirs(base_dir, exist_ok=True)
-
-        # Atualizar o arquivo profiles.json
-        profiles_file = os.path.join(base_dir, "profiles.json")
-        if os.path.exists(profiles_file):
-            with open(profiles_file, "r", encoding="utf-8") as f:
-                profiles = json.load(f)
-        else:
-            profiles = {}
 
         # Fetch the first set of posts for general information
         service, user_id = self.get_artist_info(profile_url)
@@ -281,29 +267,12 @@ class Posts:
         name = initial_data["props"]["name"]
         count = initial_data["props"]["count"]
 
-        # Save artist information
-        artist_info = {
-            "id": user_id,
-            "name": name,
-            "service": service,
-            "indexed": initial_data["props"]["artist"]["indexed"],
-            "updated": initial_data["props"]["artist"]["updated"],
-            "public_id": initial_data["props"]["artist"]["public_id"],
-            "relation_id": initial_data["props"]["artist"]["relation_id"],
-        }
-        profiles[user_id] = artist_info
 
         # Sanitizar os valores
         safe_name = self.sanitize_filename(name)
         safe_service = self.sanitize_filename(service)
         safe_user_id = self.sanitize_filename(user_id)
 
-        # Pasta do artista
-        artist_dir = os.path.join(base_dir, f"{safe_name}-{safe_service}-{safe_user_id}")
-        os.makedirs(artist_dir, exist_ok=True)
-
-        # Processar modo de busca
-        today = datetime.now().strftime("%Y-%m-%d")
 
         try:
             offsets = self.parse_fetch_mode(fetch_mode, count)
@@ -323,18 +292,12 @@ class Posts:
                 id_filter = lambda x: id1 <= str(x) <= id2
             else:
                 id_filter = lambda x: x == id_range
-
             # Redefinir offsets para varrer todas as páginas
             offsets = list(range(0, count, 50))
 
-        # Name of the JSON file with the range of offsets
-        if len(offsets) > 1:
-            file_path = os.path.join(artist_dir, f"posts-{offsets[0]}-{offsets[-1]}-{today}.json")
-        else:
-            file_path = os.path.join(artist_dir, f"posts-{offsets[0]}-{today}.json")
 
-        new_posts = []
-        # Main processing
+        processed_posts = []
+
         for offset in offsets:
             page_number = (offset // 50) + 1
             post_data = self.fetch_posts(base_api_url, service, user_id, offset=offset)
@@ -342,33 +305,19 @@ class Posts:
             previews = [item for sublist in post_data.get("result_previews", []) for item in sublist]
             attachments = [item for sublist in post_data.get("result_attachments", []) for item in sublist]
 
-            processed_posts = self.process_posts(
+            processed_posts += self.process_posts(
                 posts,
                 previews,
                 attachments,
                 page_number,
                 offset,
                 base_server,
-                save_empty_files=SAVE_EMPTY_FILES,
+                save_empty_files=self.config.get_empty_posts,
                 id_filter=id_filter
             )
-            new_posts.extend(processed_posts)
             # Save incremental posts to JSON
-            if processed_posts:
-                self.save_json_incrementally(file_path, new_posts, offset, offset + 50)
 
-                # Check if the desired IDs were found
-                if id_filter:
-                    found_ids.update(post['id'] for post in processed_posts)
-
-                    # Check if both IDs were found
-                    if (id1 in found_ids) and (id2 in found_ids):
-                        print(i18n.t("found_both_ids",id1=id1, id2=id2))
-                        break
-
-        # Print the full path of the generated JSON file
-        print(f"{os.path.abspath(file_path)}")
-        return f"{os.path.abspath(file_path)}"
+        return safe_service, safe_user_id, safe_name, processed_posts
 
 class Down:
     def __init__(self, config: Config):
@@ -497,9 +446,7 @@ class Down:
             time.sleep(2)  # Wait 2 seconds between posts
 
 
-class Codeen:
-    down = None
-
+class Downloader:
     def __init__(self):
         system_locale, _ = locale.getdefaultlocale()
         language_code = system_locale.split("_")[0]
@@ -518,69 +465,20 @@ class Codeen:
         self.posts = Posts(self.config)
 
     @staticmethod
-    def clear_screen():
-        """Limpa a tela do console de forma compatível com diferentes sistemas operacionais"""
-        os.system('self' if os.name == 'nt' else 'clear')
-
-    @staticmethod
     def display_logo():
         print(i18n.t("logo"))
 
-    @staticmethod
-    def normalize_path(path):
-        """
-        Normaliza o caminho do arquivo para lidar com caracteres não-ASCII
-        """
-        try:
-            # Se o caminho original existir, retorna ele
-            if os.path.exists(path):
-                return path
 
-            # Extrai o nome do arquivo e os componentes do caminho
-            filename = os.path.basename(path)
-            path_parts = path.split(os.sep)
-
-            # Identifica se está procurando em kemono ou coomer
-            base_dir = None
-            if 'kemono' in path_parts:
-                base_dir = 'codeen/kemono'
-            elif 'coomer' in path_parts:
-                base_dir = 'coomer'
-
-            if base_dir:
-                # Procura em todos os subdiretórios do diretório base
-                for root, dirs, files in os.walk(base_dir):
-                    if filename in files:
-                        return os.path.join(root, filename)
-
-            # Se ainda não encontrou, tenta o caminho normalizado
-            return os.path.abspath(os.path.normpath(path))
-
-        except Exception as e:
-            print(f"Error when normalizing path: {e}")
-            return path
-
-    def run_download_script(self, json_path):
+    def run_download_script(self, service, user_id, username, json_posts):
         """Roda o script de download com o JSON gerado e faz tracking detalhado em tempo real"""
         try:
-            # Normalizar o caminho do JSON
-            json_path = self.normalize_path(json_path)
-
-            # Verificar se o arquivo JSON existe
-            if not os.path.exists(json_path):
-                print(f"Error: JSON file not found: {json_path}")
-                return
-
-            # Ler o JSON de posts
-            with open(json_path, 'r', encoding='utf-8') as posts_file:
-                posts_data = json.load(posts_file)
 
             # Análise inicial
-            total_posts = posts_data['total_posts']
-            post_ids = [post['id'] for post in posts_data['posts']]
+            total_posts = len(json_posts)
+            post_ids = [post['id'] for post in json_posts]
 
             # Contagem de arquivos
-            total_files = sum(len(post['files']) for post in posts_data['posts'])
+            total_files = sum(len(post['files']) for post in json_posts)
 
             # Imprimir informações iniciais
             print(i18n.t("post_extract_complete",total_posts=total_posts))
@@ -593,18 +491,18 @@ class Codeen:
             else:
                 post_ids = sorted(post_ids, reverse=True)  # Ordem do mais recente ao mais antigo
 
-            # Pasta base para posts usando normalização de caminho
-            posts_folder = self.normalize_path(os.path.join(os.path.dirname(json_path), 'posts'))
+            # Base folder for posts using path normalization
+            posts_folder = os.path.join(service,f"{username} - {user_id}")
             os.makedirs(posts_folder, exist_ok=True)
 
             # Processar cada post
             for idx, post_id in enumerate(post_ids, 1):
                 # Encontrar dados do post específico
-                post_data = next((p for p in posts_data['posts'] if p['id'] == post_id), None)
+                post_data = next((p for p in json_posts if p['id'] == post_id), None)
 
                 if post_data:
                     # Pasta do post específico com normalização
-                    post_folder = self.normalize_path(os.path.join(posts_folder, post_id))
+                    post_folder = os.path.join(posts_folder, post_id)
                     os.makedirs(post_folder, exist_ok=True)
 
                     # Contar número de arquivos no JSON para este post
@@ -620,8 +518,7 @@ class Codeen:
 
                     try:
 
-                        self.down.run(json_path)
-
+                        self.down.run(json_posts)
                         # Após o download, verificar novamente os arquivos
                         current_files = [f for f in os.listdir(post_folder) if os.path.isfile(os.path.join(post_folder, f))]
                         current_files_count = len(current_files)
@@ -645,8 +542,7 @@ class Codeen:
             raise e
 
     def download_profile_posts(self):
-        """Opção para baixar posts de um perfil"""
-        self.clear_screen()
+        """Option to download posts from a profile"""
         self.display_logo()
         print(i18n.t("download_profile_posts"))
 
@@ -658,19 +554,19 @@ class Codeen:
         profile_link = input("Paste the profile link: ")
 
         try:
-            json_path = None
+            json_posts = None
 
             if choice == '1':
-                json_path = self.posts.run(profile_link, 'all')
+                service, user_id, name, json_posts = self.posts.run(profile_link, 'all')
 
             elif choice == '2':
                 page = input("Enter the page number (0 = first page, 50 = second, etc.): ")
-                json_path = self.posts.run(profile_link, page)
+                service, user_id, name, json_posts = self.posts.run(profile_link, page)
 
             elif choice == '3':
                 start_page = input("Enter the start page (start, 0, 50, 100, etc.): ")
                 end_page = input("Enter the final page (or use end, 300, 350, 400): ")
-                json_path = self.posts.run(profile_link, f"{start_page}-{end_page}")
+                service, user_id, name, json_posts = self.posts.run(profile_link, f"{start_page}-{end_page}")
 
             elif choice == '4':
                 first_post = input("Paste the link or ID of the first post: ")
@@ -679,11 +575,11 @@ class Codeen:
                 first_id = first_post.split('/')[-1] if '/' in first_post else first_post
                 second_id = second_post.split('/')[-1] if '/' in second_post else second_post
 
-                json_path =self.posts.run(profile_link, f"{first_id}-{second_id}")
+                service, user_id, name, json_posts =self.posts.run(profile_link, f"{first_id}-{second_id}")
 
             # Se um JSON foi gerado, roda o script de download
-            if json_path:
-                self.run_download_script(json_path)
+            if json_posts:
+                self.run_download_script(service, user_id, name, json_posts)
             else:
                 print("The JSON path could not be found.")
 
@@ -693,13 +589,9 @@ class Codeen:
         input("\nPress Enter to continue...")
 
     def customize_settings(self):
-        """Opção para personalizar configurações"""
-        config_path = os.path.join('config', 'conf.json')
-
         config: Config = Config.from_yaml("conf.yaml")
 
         while True:
-            self.clear_screen()
             self.display_logo()
 
             print(i18n.t("customize_settings",get_empty_posts=self.config.get_empty_posts, process_from_oldest=self.config.process_from_oldest,save_info=self.config.save_info, post_info=self.config.post_info))
@@ -729,7 +621,6 @@ class Codeen:
     def main_menu(self):
         """Menu principal do aplicativo"""
         while True:
-            self.clear_screen()
             self.display_logo()
             print(i18n.t("choose_an_option"))
 
@@ -748,5 +639,5 @@ class Codeen:
 
 
 if __name__ == "__main__":
-    Codeen().main_menu()
+    Downloader().main_menu()
 
